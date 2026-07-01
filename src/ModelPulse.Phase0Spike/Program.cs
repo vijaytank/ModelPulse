@@ -51,14 +51,14 @@ namespace ModelPulse.Phase0Spike
             Console.WriteLine("[INFO] Running warm-up cycle...");
             await collector.StartAsync();
             await Task.Delay(2000); // Allow first polls to fire
-            
+
             Console.WriteLine("[INFO] Warm-up complete. Performing Garbage Collection...");
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             GC.WaitForPendingFinalizers();
 
             // 3. Run 60-Second Footprint Validation Profiling
             Console.WriteLine("\n[INFO] Starting 60-second stabilization profile loop (1-second intervals)...");
-            
+
             var process = Process.GetCurrentProcess();
             var startCpuTime = process.TotalProcessorTime;
             var stopwatch = Stopwatch.StartNew();
@@ -71,18 +71,18 @@ namespace ModelPulse.Phase0Spike
 
             stopwatch.Stop();
             await collector.StopAsync();
-            
+
             // Force final GC collection to measure cleaned footprint
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             GC.WaitForPendingFinalizers();
-            
+
             process.Refresh();
             var endCpuTime = process.TotalProcessorTime;
-            
+
             var cpuUsedMs = (endCpuTime - startCpuTime).TotalMilliseconds;
             var elapsedMs = stopwatch.Elapsed.TotalMilliseconds;
             var cpuPercent = (cpuUsedMs / (Environment.ProcessorCount * elapsedMs)) * 100.0;
-            
+
             var managedRamMb = GC.GetTotalMemory(true) / (1024.0 * 1024.0);
             var privateRamMb = process.PrivateMemorySize64 / (1024.0 * 1024.0);
             var workingSetRamMb = process.WorkingSet64 / (1024.0 * 1024.0);
@@ -97,7 +97,7 @@ namespace ModelPulse.Phase0Spike
             Console.WriteLine("\n==================================================");
             Console.WriteLine("        STABILIZATION GATE EXIT CHECK             ");
             Console.WriteLine("==================================================");
-            
+
             bool gatePass = true;
             if (cpuPercent >= 0.1)
             {

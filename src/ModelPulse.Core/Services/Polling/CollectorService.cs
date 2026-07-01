@@ -57,7 +57,7 @@ namespace ModelPulse.Core.Services.Polling
 
                 _cts = new CancellationTokenSource();
                 _consecutiveFailures = 0;
-                
+
                 ScheduleNext(TimeSpan.Zero, _cts.Token);
             }
             return Task.CompletedTask;
@@ -143,7 +143,7 @@ namespace ModelPulse.Core.Services.Polling
                 if (isAvailable)
                 {
                     anyRuntimeActive = true;
-                    
+
                     var models = await adapter.GetActiveModelsAsync();
                     activeModels.AddRange(models);
 

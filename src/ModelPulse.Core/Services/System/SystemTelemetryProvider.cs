@@ -52,8 +52,8 @@ namespace ModelPulse.Core.Services.System
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetSystemTimes(
-            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpIdleTime, 
-            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime, 
+            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpIdleTime,
+            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime,
             out global::System.Runtime.InteropServices.ComTypes.FILETIME lpUserTime);
 
         private global::System.Runtime.InteropServices.ComTypes.FILETIME _lastIdleTime;
@@ -264,13 +264,13 @@ namespace ModelPulse.Core.Services.System
 
             try
             {
-                var init     = GetProc<NvmlInit_v2>(hModule, "nvmlInit_v2");
+                var init = GetProc<NvmlInit_v2>(hModule, "nvmlInit_v2");
                 var shutdown = GetProc<NvmlShutdown>(hModule, "nvmlShutdown");
                 var getHandle = GetProc<NvmlDeviceGetHandleByIndex_v2>(hModule, "nvmlDeviceGetHandleByIndex_v2");
-                var getMem   = GetProc<NvmlDeviceGetMemoryInfo>(hModule, "nvmlDeviceGetMemoryInfo");
-                var getUtil  = GetProc<NvmlDeviceGetUtilizationRates>(hModule, "nvmlDeviceGetUtilizationRates");
-                var getName  = GetProc<NvmlDeviceGetName>(hModule, "nvmlDeviceGetName");
-                var getTemp  = GetProc<NvmlDeviceGetTemperature>(hModule, "nvmlDeviceGetTemperature");
+                var getMem = GetProc<NvmlDeviceGetMemoryInfo>(hModule, "nvmlDeviceGetMemoryInfo");
+                var getUtil = GetProc<NvmlDeviceGetUtilizationRates>(hModule, "nvmlDeviceGetUtilizationRates");
+                var getName = GetProc<NvmlDeviceGetName>(hModule, "nvmlDeviceGetName");
+                var getTemp = GetProc<NvmlDeviceGetTemperature>(hModule, "nvmlDeviceGetTemperature");
 
                 if (init() != 0) return null;
 
@@ -286,7 +286,7 @@ namespace ModelPulse.Core.Services.System
 
                     if (getMem(device, out var mem) == 0)
                     {
-                        state.VramUsedMb  = mem.used  / (1024.0 * 1024.0);
+                        state.VramUsedMb = mem.used / (1024.0 * 1024.0);
                         state.VramTotalMb = mem.total / (1024.0 * 1024.0);
                     }
 
@@ -331,10 +331,10 @@ namespace ModelPulse.Core.Services.System
                         {
                             return new GpuTelemetryState
                             {
-                                SourcePath    = "DXGI",
-                                Name          = "Generic DXGI GPU",
-                                VramUsedMb    = mem.CurrentUsage / (1024.0 * 1024.0),
-                                VramTotalMb   = mem.Budget       / (1024.0 * 1024.0)
+                                SourcePath = "DXGI",
+                                Name = "Generic DXGI GPU",
+                                VramUsedMb = mem.CurrentUsage / (1024.0 * 1024.0),
+                                VramTotalMb = mem.Budget / (1024.0 * 1024.0)
                             };
                         }
                     }
@@ -367,9 +367,9 @@ namespace ModelPulse.Core.Services.System
 
                         return new GpuTelemetryState
                         {
-                            Name          = name,
-                            SourcePath    = "WMI",
-                            VramTotalMb   = totalMb
+                            Name = name,
+                            SourcePath = "WMI",
+                            VramTotalMb = totalMb
                         };
                     }
                 }

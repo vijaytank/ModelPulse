@@ -5,6 +5,7 @@ x64/
 x86/
 bin/
 obj/
+publish-out/
 
 ## Visual Studio / Rider / VS Code Metadata
 .vs/
@@ -29,3 +30,6 @@ project.fragment.lock.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+*.zip
+modelpulse*.zip

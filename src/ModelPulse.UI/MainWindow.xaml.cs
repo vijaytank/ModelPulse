@@ -62,7 +62,7 @@ namespace ModelPulse.UI
             if (hwnd == IntPtr.Zero) return;
 
             int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            
+
             if (_viewModel.IsCompactMode)
             {
                 // In compact mode, overlay is transparent to mouse clicks (pass-through)

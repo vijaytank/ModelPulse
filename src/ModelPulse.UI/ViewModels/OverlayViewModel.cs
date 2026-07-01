@@ -306,7 +306,7 @@ namespace ModelPulse.UI.ViewModels
                 var perf = snapshot.Performance.FirstOrDefault(p => p.RuntimeName == "ollama");
 
                 ActiveModelName = activeModel?.ModelName ?? "No Model Loaded";
-                
+
                 if (activeModel != null)
                 {
                     double vramMb = (activeModel.SizeVramBytes ?? 0) / (1024.0 * 1024.0);
@@ -327,7 +327,7 @@ namespace ModelPulse.UI.ViewModels
             {
                 // Llama.cpp single-model status mapping
                 var perf = snapshot.Performance.FirstOrDefault(p => p.RuntimeName == "llama.cpp");
-                
+
                 ActiveModelName = IsLlamaCppActive ? "Active Server Model" : "No Model Loaded";
                 ModelVramText = "-";
                 ContextLengthText = "-";

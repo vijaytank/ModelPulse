@@ -64,11 +64,11 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
             // Version is logged as "Unknown" unless captured from server startup logs.
             return new RuntimeSummary
             {
-                RuntimeName    = RuntimeName,
+                RuntimeName = RuntimeName,
                 RuntimeVersion = "Unknown",
-                IsAvailable    = available,
-                Endpoint       = _httpClient.BaseAddress?.ToString() ?? "http://127.0.0.1:8080",
-                Notes          = "llama.cpp does not expose a version endpoint; version captured from diagnostics only."
+                IsAvailable = available,
+                Endpoint = _httpClient.BaseAddress?.ToString() ?? "http://127.0.0.1:8080",
+                Notes = "llama.cpp does not expose a version endpoint; version captured from diagnostics only."
             };
         }
 
@@ -159,9 +159,9 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
                         _unknownFields.Add(new UnknownFieldEntry
                         {
                             RuntimeName = RuntimeName,
-                            FieldName   = metricName,
+                            FieldName = metricName,
                             FirstSeenAt = now,
-                            LastSeenAt  = now,
+                            LastSeenAt = now,
                             SampleValue = parts.Length > 1 ? parts[1] : null
                         });
                     }

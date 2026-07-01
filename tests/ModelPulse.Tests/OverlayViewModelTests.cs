@@ -71,7 +71,7 @@ namespace ModelPulse.Tests
         {
             // Arrange
             using var viewModel = new OverlayViewModel(_mockCollector.Object, _mockConfig.Object);
-            
+
             var snapshot1 = new CollectorSnapshot
             {
                 Timestamp = DateTime.UtcNow,

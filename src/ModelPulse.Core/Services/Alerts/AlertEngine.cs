@@ -17,7 +17,7 @@ namespace ModelPulse.Core.Services.Alerts
         private readonly IConfigService _configService;
         private readonly IScheduler _scheduler;
         private readonly Subject<Alert> _subject = new();
-        
+
         private readonly Dictionary<string, DateTime> _lastTriggered = new();
         private readonly Dictionary<string, bool> _lastAvailability = new();
         private readonly HashSet<string> _suppressedTypes = new(StringComparer.OrdinalIgnoreCase);
@@ -47,7 +47,7 @@ namespace ModelPulse.Core.Services.Alerts
                     var ramPct = (snapshot.System.RamUsedMb / snapshot.System.RamTotalMb) * 100.0;
                     if (ramPct >= 95.0)
                     {
-                        TriggerAlert("system", "memory_pressure", AlertSeverity.Critical, cooldown, now, 
+                        TriggerAlert("system", "memory_pressure", AlertSeverity.Critical, cooldown, now,
                             $"System RAM pressure is critical: {ramPct:F0}% utilized.");
                     }
                 }
@@ -61,7 +61,7 @@ namespace ModelPulse.Core.Services.Alerts
                     if (vramPct >= threshold)
                     {
                         var severity = vramPct >= 98.0 ? AlertSeverity.Critical : AlertSeverity.Warning;
-                        TriggerAlert("system", "memory_pressure", severity, cooldown, now, 
+                        TriggerAlert("system", "memory_pressure", severity, cooldown, now,
                             $"GPU VRAM pressure is high: {vramPct:F0}% utilized ({gpu.VramUsedMb:F0}/{gpu.VramTotalMb:F0} MB).");
                     }
                 }
@@ -70,17 +70,17 @@ namespace ModelPulse.Core.Services.Alerts
                 foreach (var runtime in snapshot.Runtimes)
                 {
                     var name = runtime.RuntimeName.ToLowerInvariant();
-                    
+
                     // Check if availability transitioned from true -> false
                     if (_lastAvailability.TryGetValue(name, out var lastAvailable))
                     {
                         if (lastAvailable && !runtime.IsAvailable)
                         {
-                            TriggerAlert(name, "disconnected", AlertSeverity.Critical, cooldown, now, 
+                            TriggerAlert(name, "disconnected", AlertSeverity.Critical, cooldown, now,
                                 $"Runtime '{runtime.RuntimeName}' has disconnected or become unreachable.");
                         }
                     }
-                    
+
                     _lastAvailability[name] = runtime.IsAvailable;
                 }
             }

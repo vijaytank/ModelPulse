@@ -39,19 +39,19 @@ namespace ModelPulse.Tests
 
             // Assert
             jsonString.Should().NotBeNullOrEmpty();
-            
+
             // Check deserialization correctness
             var jsonDoc = JsonDocument.Parse(jsonString);
             var root = jsonDoc.RootElement;
-            
+
             root.GetProperty("exported_at").GetDateTime().Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
             root.GetProperty("polling_mode").GetString().Should().Be("custom");
             root.GetProperty("idle_ms").GetInt32().Should().Be(5000);
-            
+
             var runtimes = root.GetProperty("runtimes");
             runtimes[0].GetProperty("name").GetString().Should().Be("ollama");
             runtimes[0].GetProperty("version").GetString().Should().Be("0.1.48");
-            
+
             var unknownFields = root.GetProperty("unknown_fields");
             unknownFields[0].GetProperty("field_name").GetString().Should().Be("experimental_field");
         }

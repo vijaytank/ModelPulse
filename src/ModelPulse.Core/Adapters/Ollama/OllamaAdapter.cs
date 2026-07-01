@@ -80,10 +80,10 @@ namespace ModelPulse.Core.Adapters.Ollama
 
             return new RuntimeSummary
             {
-                RuntimeName    = RuntimeName,
+                RuntimeName = RuntimeName,
                 RuntimeVersion = version,
-                IsAvailable    = available,
-                Endpoint       = _httpClient.BaseAddress?.ToString() ?? "http://127.0.0.1:11434"
+                IsAvailable = available,
+                Endpoint = _httpClient.BaseAddress?.ToString() ?? "http://127.0.0.1:11434"
             };
         }
 
@@ -134,8 +134,8 @@ namespace ModelPulse.Core.Adapters.Ollama
 
             return new PerformanceSample
             {
-                RuntimeName               = RuntimeName,
-                PromptTokensPerSecond     = promptTps,
+                RuntimeName = RuntimeName,
+                PromptTokensPerSecond = promptTps,
                 GenerationTokensPerSecond = genTps
             };
         }
@@ -179,15 +179,15 @@ namespace ModelPulse.Core.Adapters.Ollama
                     // --- Map to ActiveModelInfo ---
                     var info = new ActiveModelInfo
                     {
-                        RuntimeName        = RuntimeName,
-                        ModelName          = modelObj["name"]?.GetValue<string>() ?? string.Empty,
-                        SizeBytes          = modelObj["size"]?.GetValue<long>() ?? 0,
-                        SizeVramBytes      = GetNullableLong(modelObj, "size_vram"),
-                        ExpiresAt          = GetNullableDateTime(modelObj, "expires_at"),
-                        ContextLength      = GetNullableLong(detailsObj, "context_length"),
-                        QuantizationLevel  = detailsObj?["quantization_level"]?.GetValue<string>(),
-                        ParameterSize      = detailsObj?["parameter_size"]?.GetValue<string>(),
-                        Family             = detailsObj?["family"]?.GetValue<string>()
+                        RuntimeName = RuntimeName,
+                        ModelName = modelObj["name"]?.GetValue<string>() ?? string.Empty,
+                        SizeBytes = modelObj["size"]?.GetValue<long>() ?? 0,
+                        SizeVramBytes = GetNullableLong(modelObj, "size_vram"),
+                        ExpiresAt = GetNullableDateTime(modelObj, "expires_at"),
+                        ContextLength = GetNullableLong(detailsObj, "context_length"),
+                        QuantizationLevel = detailsObj?["quantization_level"]?.GetValue<string>(),
+                        ParameterSize = detailsObj?["parameter_size"]?.GetValue<string>(),
+                        Family = detailsObj?["family"]?.GetValue<string>()
                     };
 
                     results.Add(info);
@@ -220,11 +220,11 @@ namespace ModelPulse.Core.Adapters.Ollama
                     {
                         _unknownFields.Add(new UnknownFieldEntry
                         {
-                            RuntimeName  = RuntimeName,
-                            FieldName    = kvp.Key,
-                            FirstSeenAt  = now,
-                            LastSeenAt   = now,
-                            SampleValue  = kvp.Value?.ToJsonString()?.Trim('"')
+                            RuntimeName = RuntimeName,
+                            FieldName = kvp.Key,
+                            FirstSeenAt = now,
+                            LastSeenAt = now,
+                            SampleValue = kvp.Value?.ToJsonString()?.Trim('"')
                         });
                     }
                 }

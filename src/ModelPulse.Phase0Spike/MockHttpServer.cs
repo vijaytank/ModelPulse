@@ -70,7 +70,7 @@ llamacpp:prompt_tokens_total 4827
 llamacpp:tokens_predicted_total 9272
 # HELP llamacpp:slots_active Number of active slots.
 # TYPE llamacpp:slots_active gauge
-llamacpp:slots_active 2";
+llamacpp:slots_active 0";
 
                     byte[] buffer = Encoding.UTF8.GetBytes(metrics);
                     response.ContentType = "text/plain; charset=utf-8";

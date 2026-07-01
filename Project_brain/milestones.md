@@ -41,9 +41,9 @@ This document lays out the execution roadmap for ModelPulse. The total estimated
 
 ---
 
-## Milestone 5: Stabilization & Verification
+## Milestone 5: Stabilization & Verification [COMPLETED]
 *Estimated Duration: 3 Days*
 
-- **Drift & Fallback Testing (1 Day):** Test with mock endpoints sending malformed, missing, or renamed JSON fields. Verify fallback to DXGI when NVML path is blocked.
-- **Performance Profiling (1 Day):** Profile Memory and CPU footprints to ensure ModelPulse runs under target budget (RAM < 15MB, idle CPU < 0.1%).
-- **Packaging & Launch (1 Day):** Configure portable `.zip` build release and verify first-run installer actions.
+- **Drift & Fallback Testing (1 Day) [COMPLETED]:** Test with mock endpoints sending malformed, missing, or renamed JSON fields. Verify fallback to DXGI when NVML path is blocked.
+- **Performance Profiling (1 Day) [COMPLETED]:** Profile Memory and CPU footprints to ensure ModelPulse runs under target budget (RAM < 15MB, idle CPU < 0.1%).
+- **Packaging & Launch (1 Day) [COMPLETED]:** Configure portable `.zip` build release and verify first-run installer actions.

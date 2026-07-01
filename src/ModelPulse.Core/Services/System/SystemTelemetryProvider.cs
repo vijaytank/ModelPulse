@@ -28,6 +28,39 @@ namespace ModelPulse.Core.Services.System
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool FreeLibrary(IntPtr hModule);
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private class MEMORYSTATUSEX
+        {
+            public uint dwLength;
+            public uint dwMemoryLoad;
+            public ulong ullTotalPhys;
+            public ulong ullAvailPhys;
+            public ulong ullTotalPageFile;
+            public ulong ullAvailPageFile;
+            public ulong ullTotalVirtual;
+            public ulong ullAvailVirtual;
+            public ulong ullAvailExtendedVirtual;
+            public MEMORYSTATUSEX()
+            {
+                this.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+            }
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetSystemTimes(
+            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpIdleTime, 
+            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime, 
+            out global::System.Runtime.InteropServices.ComTypes.FILETIME lpUserTime);
+
+        private global::System.Runtime.InteropServices.ComTypes.FILETIME _lastIdleTime;
+        private global::System.Runtime.InteropServices.ComTypes.FILETIME _lastKernelTime;
+        private global::System.Runtime.InteropServices.ComTypes.FILETIME _lastUserTime;
+        private bool _hasCpuHistory;
+
         // ─── NVML Delegates ─────────────────────────────────────────────
         [StructLayout(LayoutKind.Sequential)]
         private struct NvmlMemory { public ulong total, free, used; }
@@ -129,21 +162,42 @@ namespace ModelPulse.Core.Services.System
         {
             try
             {
-                // Use WMI for a single accurate point-in-time CPU load
-                using var searcher = new ManagementObjectSearcher(
-                    "SELECT LoadPercentage FROM Win32_Processor");
-                double total = 0;
-                int count = 0;
-                foreach (var obj in searcher.Get())
+                if (!GetSystemTimes(out var idleTime, out var kernelTime, out var userTime))
                 {
-                    var load = obj["LoadPercentage"];
-                    if (load != null && double.TryParse(load.ToString(), out var val))
-                    {
-                        total += val;
-                        count++;
-                    }
+                    return 0;
                 }
-                return count > 0 ? total / count : 0;
+
+                var idle = ConvertFileTime(idleTime);
+                var kernel = ConvertFileTime(kernelTime);
+                var user = ConvertFileTime(userTime);
+
+                if (!_hasCpuHistory)
+                {
+                    _lastIdleTime = idleTime;
+                    _lastKernelTime = kernelTime;
+                    _lastUserTime = userTime;
+                    _hasCpuHistory = true;
+                    return 0;
+                }
+
+                var lastIdle = ConvertFileTime(_lastIdleTime);
+                var lastKernel = ConvertFileTime(_lastKernelTime);
+                var lastUser = ConvertFileTime(_lastUserTime);
+
+                var idleDiff = idle - lastIdle;
+                var kernelDiff = kernel - lastKernel;
+                var userDiff = user - lastUser;
+
+                var totalDiff = kernelDiff + userDiff;
+
+                _lastIdleTime = idleTime;
+                _lastKernelTime = kernelTime;
+                _lastUserTime = userTime;
+
+                if (totalDiff <= 0) return 0;
+
+                var cpu = ((totalDiff - idleDiff) * 100.0) / totalDiff;
+                return Math.Clamp(cpu, 0.0, 100.0);
             }
             catch
             {
@@ -151,17 +205,19 @@ namespace ModelPulse.Core.Services.System
             }
         }
 
+        private static ulong ConvertFileTime(global::System.Runtime.InteropServices.ComTypes.FILETIME fileTime)
+        {
+            return ((ulong)fileTime.dwHighDateTime << 32) | (uint)fileTime.dwLowDateTime;
+        }
+
         private double GetRamUsedMb()
         {
             try
             {
-                using var searcher = new ManagementObjectSearcher(
-                    "SELECT FreePhysicalMemory, TotalVisibleMemorySize FROM Win32_OperatingSystem");
-                foreach (var obj in searcher.Get())
+                var stat = new MEMORYSTATUSEX();
+                if (GlobalMemoryStatusEx(stat))
                 {
-                    var free = Convert.ToDouble(obj["FreePhysicalMemory"]);  // KB
-                    var total = Convert.ToDouble(obj["TotalVisibleMemorySize"]);  // KB
-                    return (total - free) / 1024.0; // to MB
+                    return (stat.ullTotalPhys - stat.ullAvailPhys) / (1024.0 * 1024.0);
                 }
             }
             catch { }
@@ -172,11 +228,10 @@ namespace ModelPulse.Core.Services.System
         {
             try
             {
-                using var searcher = new ManagementObjectSearcher(
-                    "SELECT TotalVisibleMemorySize FROM Win32_OperatingSystem");
-                foreach (var obj in searcher.Get())
+                var stat = new MEMORYSTATUSEX();
+                if (GlobalMemoryStatusEx(stat))
                 {
-                    return Convert.ToDouble(obj["TotalVisibleMemorySize"]) / 1024.0;
+                    return stat.ullTotalPhys / (1024.0 * 1024.0);
                 }
             }
             catch { }

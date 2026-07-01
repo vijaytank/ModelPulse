@@ -1,8 +1,101 @@
-# Local AI Widget Telemetry Schema
+# ModelPulse Telemetry and Config Schema
 
 ## Overview
 
-This document defines the normalized telemetry model for the Local AI Widget MVP. It focuses on consistent runtime metadata, configurable polling, rolling history windows, and runtime-aware alerting.[cite:5][cite:34][cite:40]
+This document defines the normalized telemetry and configuration model for the ModelPulse MVP. It focuses on consistent runtime metadata, configurable polling, rolling history windows, runtime-aware alerting, and local settings representation.[cite:5][cite:34][cite:40]
+
+---
+
+## Settings Configuration Schema (`settings.json`)
+
+The local settings are persisted in a JSON file at `%APPDATA%\ModelPulse\settings.json`.
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ModelPulseSettings",
+  "type": "object",
+  "properties": {
+    "polling_mode": {
+      "type": "string",
+      "enum": ["default", "low-power", "custom"],
+      "default": "default"
+    },
+    "polling_intervals": {
+      "type": "object",
+      "properties": {
+        "idle_ms": {
+          "type": "integer",
+          "minimum": 500,
+          "default": 3000
+        },
+        "active_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "default": 1000
+        }
+      },
+      "required": ["idle_ms", "active_ms"]
+    },
+    "runtimes": {
+      "type": "object",
+      "properties": {
+        "ollama": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "endpoint": { "type": "string", "default": "http://127.0.0.1:11434" }
+          },
+          "required": ["enabled", "endpoint"]
+        },
+        "llama_cpp": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "endpoint": { "type": "string", "default": "http://127.0.0.1:8080" }
+          },
+          "required": ["enabled", "endpoint"]
+        }
+      },
+      "required": ["ollama", "llama_cpp"]
+    },
+    "alerts": {
+      "type": "object",
+      "properties": {
+        "suppressed_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "cooldown_seconds": {
+          "type": "integer",
+          "minimum": 5,
+          "default": 60
+        },
+        "vram_warning_threshold_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 90.0
+        }
+      },
+      "required": ["suppressed_types", "cooldown_seconds", "vram_warning_threshold_percent"]
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "always_on_top": { "type": "boolean", "default": true },
+        "opacity": { "type": "number", "minimum": 0.1, "maximum": 1.0, "default": 0.9 },
+        "launch_overlay_on_startup": { "type": "boolean", "default": false }
+      },
+      "required": ["always_on_top", "opacity", "launch_overlay_on_startup"]
+    }
+  },
+  "required": ["polling_mode", "polling_intervals", "runtimes", "alerts", "ui"]
+}
+```
+
+---
 
 ## Snapshot Metadata
 
@@ -69,16 +162,38 @@ Adapters must capture unmapped fields in a structured format.
 | last_seen_at | datetime | Yes | Most recent observation time |
 | sample_value | string | Optional | Truncated sample for debugging |
 
-## GPU Compatibility Tracking
+---
 
-The follow-on schema implementation should maintain a compatibility matrix for GPU telemetry by vendor and collection path.
+## GPU Fallback Hierarchy and Compatibility
 
-| Vendor/Path | GPU Utilization | VRAM Used | Process-Level GPU | Notes |
-|---|---|---|---|---|
-| Windows generic counters | Varies | Varies | Limited | Baseline fallback |
-| NVIDIA path | Often strong | Often strong | Varies | Use when available |
-| AMD path | Varies | Varies | Varies | Driver-dependent |
-| Intel path | Varies | Varies | Varies | Driver-dependent |
+To retrieve GPU and VRAM metrics, ModelPulse follows a strict fallback chain to ensure compatibility across hardware and minimize drivers issues:
+
+### Fallback Hierarchy:
+1. **NVIDIA Management Library (NVML):**
+   - *Target:* NVIDIA GeForce / Quadro / Tesla GPUs.
+   - *Mechanism:* P/Invoke into `nvml.dll`.
+   - *Data Extracted:* Accurate GPU engine load (%), VRAM Allocated (bytes), Total VRAM (bytes), and temperature (°C).
+2. **DXGI (DirectX Graphics Infrastructure):**
+   - *Target:* Generic fallback for all DirectX-compatible GPUs (Intel, AMD, NVIDIA).
+   - *Mechanism:* Query `IDXGIAdapter3::QueryVideoMemoryInfo`.
+   - *Data Extracted:* VRAM Allocated (bytes), Total VRAM (bytes). (Note: Does not provide GPU core engine utilization %).
+3. **Windows Performance Counters (PDH) / WMI:**
+   - *Target:* CPU-integrated graphics or legacy hardware.
+   - *Mechanism:* Query WMI class `Win32_VideoController` or PDH counter paths.
+   - *Data Extracted:* Base card description, approximate VRAM fallback.
+4. **Degraded State:**
+   - If all paths fail, report `Unavailable` instead of mock or fake zeroes.
+
+### Compatibility Matrix:
+
+| Vendor/Path | Primary Path | GPU Load % | VRAM Usage | Reliability | Notes |
+|---|---|---|---|---|---|
+| **NVIDIA** | NVML | ✅ Yes | ✅ Yes | High | Directly queried via driver dll |
+| **AMD** | DXGI | ❌ No | ✅ Yes | Medium | GPU Load requires legacy ADL API (deferred) |
+| **Intel** | DXGI | ❌ No | ✅ Yes | Medium | Core utilization is unavailable via DXGI |
+| **Generic** | PDH / WMI | ⚠️ Varies | ⚠️ Varies | Low | CPU overhead is higher; fallback only |
+
+---
 
 ## Alert State Model
 

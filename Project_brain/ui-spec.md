@@ -1,8 +1,8 @@
-# Local AI Widget UI Spec
+# ModelPulse UI Spec
 
 ## Overview
 
-This document describes the MVP interface behavior for the Local AI Widget. It includes runtime version visibility, advanced polling settings, a 5-minute history view, and runtime-aware alert handling.[cite:5][cite:34][cite:40]
+This document describes the MVP interface behavior for ModelPulse. It includes runtime version visibility, advanced polling settings, a 5-minute history view, and runtime-aware alert handling.[cite:5][cite:34][cite:40]
 
 ## Compact Overlay
 

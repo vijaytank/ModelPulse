@@ -1,4 +1,4 @@
-# Local AI Widget MVP Design
+# ModelPulse MVP Design
 
 ## Overview
 
@@ -113,7 +113,15 @@ Nice to have later:
 - Disk activity
 - Network usage
 
-GPU telemetry must be vendor-tolerant. If a given Windows counter or vendor API cannot provide VRAM usage, the widget should show `Unavailable` or `Not exposed by driver/runtime` instead of misleading zero values. The follow-on `telemetry-schema.md` should include a compatibility matrix showing which GPU fields are reliable by vendor and collection path, for example DXGI, NVML, AMD-specific paths, or other Windows-accessible APIs.
+GPU telemetry must be vendor-tolerant. If a given Windows counter or vendor API cannot provide VRAM usage, the widget should show `Unavailable` or `Not exposed by driver/runtime` instead of misleading zero values. 
+
+The fallback order for GPU telemetry collection is:
+1. **NVML (NVIDIA Management Library):** Query directly via NVML API for NVIDIA GPU hardware (most accurate for temperature, engine load, and physical/virtual VRAM).
+2. **DXGI (DirectX Graphics Infrastructure):** Query via DXGI adapter interface (Windows native fallback, provides adapter-wide VRAM allocation metrics).
+3. **WMI (Windows Management Instrumentation) / Performance Counters:** Query general system counters if NVML and DXGI are unreachable.
+4. **Unavailable State:** If all queries fail or return invalid/unsupported signals, show `Unavailable` instead of misleading zero values.
+
+The follow-on `telemetry-schema.md` includes a compatibility matrix mapping which GPU fields are reliable by vendor and collection path.
 
 ### Ollama telemetry
 
@@ -244,7 +252,6 @@ The MVP must be designed to avoid becoming a resource problem itself.
    - Manages startup, quick actions, mode switching, and settings.
    - Provides diagnostics snapshot export.
    - Includes runtime version logging in snapshots so mismatches can be traced later.
-   - Includes runtime version logging in snapshots so mismatches can be traced later.
 
 5. **Alert engine**
    - Memory pressure alerts
@@ -252,8 +259,6 @@ The MVP must be designed to avoid becoming a resource problem itself.
    - Performance drop alerts
    - Severity model: info, warning, critical
    - User controls for suppressing noisy alert types
-   - Cooldown rules per alert type to avoid repeated spam
-   - Per-runtime alert rules so Ollama and llama.cpp warnings stay distinct
    - Cooldown rules per alert type to avoid repeated spam
    - Per-runtime alert rules so Ollama and llama.cpp warnings stay distinct
 
@@ -267,10 +272,6 @@ Each runtime adapter should provide:
 - `GetPerformanceSample()`
 - `GetMemorySignals()`
 - `GetWarnings()`
-
-This lets the widget add future providers without changing the UI model.
-
-Adapters should also support automated field discovery behavior for diagnostics: unknown or newly added runtime fields should be logged into snapshots or debug logs rather than silently discarded. This helps track endpoint drift without breaking the UI.
 
 Adapters should also support automated field discovery behavior for diagnostics: unknown or newly added runtime fields should be logged into snapshots or debug logs rather than silently discarded. This helps track endpoint drift without breaking the UI.
 
@@ -304,6 +305,13 @@ Tasks:
 - Record runtime version information for snapshots and compatibility tracking.
 - Decide minimum useful refresh rate.
 
+**Go/No-Go Exit Criteria (Phase 0 Gate):**
+Before moving to Phase 1, the following must be met:
+1. Probe scripts successfully query local Ollama (`/api/ps`) and llama.cpp (`/health`) endpoints and return valid JSON.
+2. The schemas returned are parsed successfully without throwing exceptions in a test C# program.
+3. Polling overhead is confirmed: idle CPU usage of probe script must be < 0.1%, and RAM footprint under 15MB.
+4. Any undocumented or changed fields are captured and logged. If endpoints are unreachable or schemas differ fundamentally, Phase 1 is blocked until the adapter parser rules are updated.
+
 ### Phase 1: collector core
 
 Deliverables:
@@ -332,7 +340,6 @@ Tasks:
 - Handle missing metrics safely.[cite:23]
 - Use null-safe parsing throughout so omitted Ollama fields degrade gracefully instead of breaking UI state.[cite:23]
 - Log unknown or newly seen Ollama fields into diagnostics output for drift tracking.
-- Log unknown or newly seen Ollama fields into diagnostics output for drift tracking.
 
 ### Phase 3: llama.cpp adapter
 
@@ -345,7 +352,6 @@ Tasks:
 - Parse `/health`.[cite:40]
 - Parse `/metrics` and map relevant counters.[cite:34][cite:37]
 - Support optional slot inspection.[cite:33][cite:44]
-- Log unknown or newly seen llama.cpp metric names or fields into diagnostics output for drift tracking.
 - Log unknown or newly seen llama.cpp metric names or fields into diagnostics output for drift tracking.
 
 ### Phase 4: overlay UI
@@ -391,8 +397,6 @@ The MVP is successful when all of the following are true:
 - Diagnostics snapshot export works for troubleshooting runtime mismatch cases.
 - Diagnostics snapshots include runtime version data and unknown-field logging where available.
 - When multiple runtimes are active, the expanded overlay defaults to a runtime toggle view rather than an overloaded all-at-once panel.
-- Diagnostics snapshots include runtime version data and unknown-field logging where available.
-- When multiple runtimes are active, the expanded overlay defaults to a runtime toggle view rather than an overloaded all-at-once panel.
 
 ## Risks and Mitigations
 
@@ -434,16 +438,17 @@ A minimal diagnostics snapshot export should be introduced early, even in the MV
 - Multi-machine monitoring
 - Plug-in SDK
 
-## Next Files To Create
+## Planning Documents
 
-After approval, the next project documents should be:
+All planning documents have been created:
 
-1. `requirements.md` — functional and non-functional requirements
-2. `architecture.md` — modules, interfaces, event flow
-3. `ui-spec.md` — compact and expanded widget layouts
-4. `telemetry-schema.md` — normalized fields and adapter mapping
-5. `milestones.md` — week-by-week delivery plan
-6. `risk-register.md` — operational and technical risk tracking
+- `requirements.md` — functional and non-functional requirements
+- `architecture.md` — modules, threading model, state publication, solution structure
+- `ui-spec.md` — compact and expanded widget layouts
+- `telemetry-schema.md` — normalized fields, adapter mapping, settings schema
+- `milestones.md` — milestone delivery plan with estimates
+- `risk-register.md` — operational and technical risk tracking
+- `testing-strategy.md` — unit, integration, and UI thread safety test plan
 
 ## Immediate Recommendation
 

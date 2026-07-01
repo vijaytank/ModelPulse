@@ -1,8 +1,8 @@
-# Local AI Widget Risk Register
+# ModelPulse Risk Register
 
 ## Overview
 
-This register tracks key implementation and operational risks for the Local AI Widget MVP.[cite:5][cite:34][cite:40]
+This register tracks key implementation and operational risks for the ModelPulse MVP.[cite:5][cite:34][cite:40]
 
 | ID | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|

@@ -1,8 +1,8 @@
-# Local AI Widget Requirements
+# ModelPulse Requirements
 
 ## Overview
 
-This document defines the functional and non-functional requirements for the Local AI Widget MVP, a Windows-first, memory-optimized desktop utility focused on Ollama and llama.cpp local runtime monitoring.[cite:5][cite:34][cite:40]
+This document defines the functional and non-functional requirements for the ModelPulse MVP, a Windows-first, memory-optimized desktop utility focused on Ollama and llama.cpp local runtime monitoring.[cite:5][cite:34][cite:40]
 
 ## Functional Requirements
 

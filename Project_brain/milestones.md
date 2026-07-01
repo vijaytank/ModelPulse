@@ -4,40 +4,40 @@ This document lays out the execution roadmap for ModelPulse. The total estimated
 
 ---
 
-## Milestone 1: Core Telemetry & Discovery Spike
+## Milestone 1: Core Telemetry & Discovery Spike [COMPLETED]
 *Estimated Duration: 4 Days*
 
-- **Phase 0 Spike (1 Day):** Validate local Ollama (`/api/ps`) and llama.cpp (`/health`) endpoint structure, confirm GPU performance counter path viability, and pass the Go/No-Go Gate.
-- **Core Models (1 Day):** Set up the .NET 8 solution (`ModelPulse.sln`) structure, C# project templates, interfaces (`IRuntimeAdapter`), and model schemas.
-- **System & Runtime Adapters (2 Days):**
+- **Phase 0 Spike (1 Day) [COMPLETED]:** Validate local Ollama (`/api/ps`) and llama.cpp (`/health`) endpoint structure, confirm GPU performance counter path viability, and pass the Go/No-Go Gate.
+- **Core Models (1 Day) [COMPLETED]:** Set up the .NET 10 solution (`ModelPulse.sln` / `ModelPulse.slnx`) structure, C# project templates, interfaces (`IRuntimeAdapter`), and model schemas.
+- **System & Runtime Adapters (2 Days) [COMPLETED]:**
   - Implement NVIDIA P/Invoke NVML client and DXGI/WMI fallbacks.
   - Implement `OllamaAdapter` and `LlamaCppAdapter` with schema parsing and drift logging.
 
 ---
 
-## Milestone 2: Reactive Collector & Adaptive Polling
+## Milestone 2: Reactive Collector & Adaptive Polling [COMPLETED]
 *Estimated Duration: 3 Days*
 
-- **Polling Core (1 Day):** Build the timer-based collector service using `Task.Delay` and async HTTP loop. Implement adaptive rate scaling based on inference status (busy/idle).
-- **Rx.NET State Stream (1 Day):** Implement `IObservable<TelemetryState>` pipeline to push unified telemetry data from background threads.
-- **Settings Store (1 Day):** Create local JSON configuration load/save service (`settings.json`). Add advanced custom interval controls.
+- **Polling Core (1 Day) [COMPLETED]:** Build the timer-based collector service using `Task.Delay` and async HTTP loop. Implement adaptive rate scaling based on inference status (busy/idle).
+- **Rx.NET State Stream (1 Day) [COMPLETED]:** Implement `IObservable<TelemetryState>` pipeline to push unified telemetry data from background threads.
+- **Settings Store (1 Day) [COMPLETED]:** Create local JSON configuration load/save service (`settings.json`). Add advanced custom interval controls.
 
 ---
 
-## Milestone 3: Desktop UI & Overlay Baseline
+## Milestone 3: Desktop UI & Overlay Baseline [COMPLETED]
 *Estimated Duration: 4 Days*
 
-- **Tray Agent Setup (1 Day):** Implement WPF NotifyIcon application startup, tray context menu (show/hide controls, manual pause, settings trigger), and background lifecycle.
-- **Compact Overlay View (1.5 Days):** Design borderless, transparent, always-on-top WPF window. Pinned to edge with auto-snap. Bind to Rx.NET stream via ViewModel dispatcher.
-- **Expanded Overlay View (1.5 Days):** Design the detailed toggle panel for Ollama/llama.cpp, adding the rolling 5-minute trend summaries and active model list.
+- **Tray Agent Setup (1 Day) [COMPLETED]:** Implement WPF NotifyIcon application startup, tray context menu (show/hide controls, manual pause, settings trigger), and background lifecycle.
+- **Compact Overlay View (1.5 Days) [COMPLETED]:** Design borderless, transparent, always-on-top WPF window. Pinned to edge with auto-snap. Bind to Rx.NET stream via ViewModel dispatcher.
+- **Expanded Overlay View (1.5 Days) [COMPLETED]:** Design the detailed toggle panel for Ollama/llama.cpp, adding the rolling 5-minute trend summaries and active model list.
 
 ---
 
-## Milestone 4: Alert Engine & Diagnostics
+## Milestone 4: Alert Engine & Diagnostics [COMPLETED]
 *Estimated Duration: 3 Days*
 
-- **Alert Engine Implementation (1.5 Days):** Write rule evaluation engine for CPU/RAM/VRAM pressure and disconnected runtimes. Implement distinct per-runtime queues and thread-safe alert cooldowns.
-- **Diagnostics Exporter (1.5 Days):** Build snapshot serializer writing timestamped configuration state, adapter version info, and observed unknown fields to JSON for easy debugging.
+- **Alert Engine Implementation (1.5 Days) [COMPLETED]:** Write rule evaluation engine for CPU/RAM/VRAM pressure and disconnected runtimes. Implement distinct per-runtime queues and thread-safe alert cooldowns.
+- **Diagnostics Exporter (1.5 Days) [COMPLETED]:** Build snapshot serializer writing timestamped configuration state, adapter version info, and observed unknown fields to JSON for easy debugging.
 
 ---
 

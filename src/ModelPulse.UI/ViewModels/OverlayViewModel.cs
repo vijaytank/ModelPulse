@@ -59,8 +59,18 @@ namespace ModelPulse.UI.ViewModels
         public bool IsCompactMode
         {
             get => _isCompactMode;
-            set => SetProperty(ref _isCompactMode, value);
+            set
+            {
+                if (SetProperty(ref _isCompactMode, value))
+                {
+                    OnPropertyChanged(nameof(CompactVisibility));
+                    OnPropertyChanged(nameof(ExpandedVisibility));
+                }
+            }
         }
+
+        public Visibility CompactVisibility => _isCompactMode ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility ExpandedVisibility => _isCompactMode ? Visibility.Collapsed : Visibility.Visible;
 
         public double CpuPercent
         {

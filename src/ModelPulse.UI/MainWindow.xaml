@@ -50,6 +50,29 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="HeaderButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#88FFFFFF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="4 2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -58,7 +81,7 @@
                 VerticalAlignment="Bottom" HorizontalAlignment="Right"
                 Width="280" Height="75" Margin="10"
                 Cursor="Hand" MouseLeftButtonDown="CompactOverlay_Click"
-                Visibility="{Binding IsCompactMode, Converter={StaticResource BoolToVis}}">
+                Visibility="{Binding CompactVisibility}">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="15" ShadowDepth="2" Opacity="0.5" Color="Black"/>
             </Border.Effect>
@@ -67,6 +90,13 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+
+                <!-- Close Button in top right of Compact Overlay -->
+                <Button Content="×" 
+                        HorizontalAlignment="Right" VerticalAlignment="Top" 
+                        Background="Transparent" BorderThickness="0" Foreground="#55FFFFFF"
+                        FontSize="14" FontWeight="Bold" Margin="0 -8 -4 0" Cursor="Hand"
+                        Click="Hide_Click" ToolTip="Hide Overlay" Panel.ZIndex="10"/>
 
                 <!-- Resource Stats Grid -->
                 <Grid Grid.Column="0">
@@ -99,7 +129,7 @@
         <!-- 2. EXPANDED OVERLAY VIEW -->
         <Border Style="{StaticResource OverlayCard}" 
                 Margin="10"
-                Visibility="{Binding IsCompactMode, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                Visibility="{Binding ExpandedVisibility}">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="20" ShadowDepth="3" Opacity="0.6" Color="Black"/>
             </Border.Effect>
@@ -113,8 +143,11 @@
 
                 <!-- Header -->
                 <Grid Grid.Row="0" Margin="0 0 0 10">
-                    <TextBlock Text="ModelPulse Monitor" Foreground="White" FontSize="14" FontWeight="Bold"/>
-                    <Button Content="Collapse" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" Foreground="#88FFFFFF" Cursor="Hand" Click="Collapse_Click"/>
+                    <TextBlock Text="ModelPulse Monitor" Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button Content="Collapse" Style="{StaticResource HeaderButton}" Click="Collapse_Click"/>
+                        <Button Content="Hide" Style="{StaticResource HeaderButton}" Margin="10 0 0 0" Click="Hide_Click" ToolTip="Hide Overlay"/>
+                    </StackPanel>
                 </Grid>
 
                 <!-- Tabs (if multiple runtimes are active) -->

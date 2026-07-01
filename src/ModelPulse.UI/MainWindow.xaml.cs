@@ -94,5 +94,15 @@ namespace ModelPulse.UI
         {
             _viewModel.IsCompactMode = true;
         }
+
+        private void Hide_Click(object sender, RoutedEventArgs e)
+        {
+            Hide();
+        }
+
+        public void RegisterTrayIcon(FrameworkElement trayIcon)
+        {
+            this.AddLogicalChild(trayIcon);
+        }
     }
 }

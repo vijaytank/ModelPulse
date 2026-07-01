@@ -99,6 +99,9 @@ namespace ModelPulse.UI
 
             // 4. Initialize Tray Icon
             InitializeTrayIcon();
+
+            // 5. Show Overlay Window on first launch for visibility
+            ShowOverlay();
         }
 
         private void InitializeTrayIcon()
@@ -108,6 +111,7 @@ namespace ModelPulse.UI
                 Icon = System.Drawing.SystemIcons.Application,
                 ToolTipText = "ModelPulse - Local AI Telemetry"
             };
+            this.Resources.Add("TrayIcon", _taskbarIcon);
 
             // Build Context Menu
             var menu = new ContextMenu();
@@ -146,6 +150,10 @@ namespace ModelPulse.UI
             if (_overlayWindow == null)
             {
                 _overlayWindow = new MainWindow(_collectorService!, _configService!);
+                if (_taskbarIcon != null)
+                {
+                    _overlayWindow.RegisterTrayIcon(_taskbarIcon);
+                }
             }
             _overlayWindow.Show();
             _overlayWindow.Activate();

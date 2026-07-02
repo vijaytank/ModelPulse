@@ -6,6 +6,8 @@ using System.Windows.Interop;
 using ModelPulse.Core.Services;
 using ModelPulse.Core.Services.Config;
 using ModelPulse.UI.ViewModels;
+using H.NotifyIcon;
+using H.NotifyIcon.Core;
 
 namespace ModelPulse.UI
 {
@@ -20,6 +22,9 @@ namespace ModelPulse.UI
 
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_TRANSPARENT = 0x00000020;
+        private const int WS_EX_TOOLWINDOW = 0x00000080;
+
+        private TaskbarIcon? _trayIcon;
 
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hwnd, int index);
@@ -62,17 +67,9 @@ namespace ModelPulse.UI
             if (hwnd == IntPtr.Zero) return;
 
             int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-
-            if (_viewModel.IsCompactMode)
-            {
-                // In compact mode, overlay is transparent to mouse clicks (pass-through)
-                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_TRANSPARENT);
-            }
-            else
-            {
-                // In expanded mode, user can interact with settings and buttons
-                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle & ~WS_EX_TRANSPARENT);
-            }
+            // Ensure overlay is never transparent to mouse clicks (pass-through disabled)
+            // AND ensure it is a ToolWindow to hide it from the Alt-Tab switcher
+            SetWindowLong(hwnd, GWL_EXSTYLE, (extendedStyle & ~WS_EX_TRANSPARENT) | WS_EX_TOOLWINDOW);
         }
 
         private void CompactOverlay_Click(object sender, MouseButtonEventArgs e)
@@ -98,11 +95,35 @@ namespace ModelPulse.UI
         private void Hide_Click(object sender, RoutedEventArgs e)
         {
             Hide();
+            _trayIcon?.ShowNotification("ModelPulse", "ModelPulse is still running in the system tray. Left-click or right-click the tray icon to manage or exit.", NotificationIcon.Info);
+        }
+
+        private bool _isExplicitClose = false;
+
+        public void ExplicitClose()
+        {
+            _isExplicitClose = true;
+            Close();
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_isExplicitClose)
+            {
+                e.Cancel = true;
+                Hide();
+                _trayIcon?.ShowNotification("ModelPulse", "ModelPulse is still running in the system tray. Left-click or right-click the tray icon to manage or exit.", NotificationIcon.Info);
+            }
+            else
+            {
+                base.OnClosing(e);
+            }
         }
 
         public void RegisterTrayIcon(FrameworkElement trayIcon)
         {
             this.AddLogicalChild(trayIcon);
+            _trayIcon = trayIcon as TaskbarIcon;
         }
     }
 }

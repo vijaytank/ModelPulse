@@ -31,6 +31,10 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
             "llamacpp:requests_deferred"
         };
 
+        private double? _lastPromptTokens;
+        private double? _lastPredictedTokens;
+        private DateTime? _lastMetricsTime;
+
         public LlamaCppAdapter(HttpClient httpClient)
         {
             _httpClient = httpClient;
@@ -103,6 +107,30 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
                     var metricsContent = await metricsResponse.Content.ReadAsStringAsync();
                     var metrics = ParseMetricsWithDriftDetection(metricsContent);
                     sample.ActiveSlots = metrics.ActiveSlots > 0 ? metrics.ActiveSlots : sample.ActiveSlots;
+
+                    var now = DateTime.UtcNow;
+                    lock (_lock)
+                    {
+                        if (_lastMetricsTime.HasValue)
+                        {
+                            var elapsedSeconds = (now - _lastMetricsTime.Value).TotalSeconds;
+                            if (elapsedSeconds > 0)
+                            {
+                                if (_lastPromptTokens.HasValue && metrics.PromptTokensTotal >= _lastPromptTokens.Value)
+                                {
+                                    sample.PromptTokensPerSecond = (metrics.PromptTokensTotal - _lastPromptTokens.Value) / elapsedSeconds;
+                                }
+                                if (_lastPredictedTokens.HasValue && metrics.TokensPredictedTotal >= _lastPredictedTokens.Value)
+                                {
+                                    sample.GenerationTokensPerSecond = (metrics.TokensPredictedTotal - _lastPredictedTokens.Value) / elapsedSeconds;
+                                }
+                            }
+                        }
+
+                        _lastPromptTokens = metrics.PromptTokensTotal;
+                        _lastPredictedTokens = metrics.TokensPredictedTotal;
+                        _lastMetricsTime = now;
+                    }
                 }
             }
             catch

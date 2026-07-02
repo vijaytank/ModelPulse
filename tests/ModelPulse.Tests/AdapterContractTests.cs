@@ -33,11 +33,11 @@ namespace ModelPulse.Tests
                         ""family"": ""gemma2"",
                         ""families"": [""gemma2""],
                         ""parameter_size"": ""27B"",
-                        ""quantization_level"": ""Q4_K_M"",
-                        ""context_length"": 131072
+                        ""quantization_level"": ""Q4_K_M""
                     },
                     ""expires_at"": ""2026-07-02T15:20:00Z"",
-                    ""size_vram"": 14000000000
+                    ""size_vram"": 14000000000,
+                    ""context_length"": 131072
                 }]
             }";
 
@@ -72,6 +72,30 @@ namespace ModelPulse.Tests
 
             // Assert
             available.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task OllamaAdapter_GetRuntimeSummary_QueriesVersionApi()
+        {
+            // Arrange
+            var versionJson = @"{ ""version"": ""0.31.1"" }";
+            
+            var handler = new RoutedMockHttpHandler(new Dictionary<string, (HttpStatusCode, string, string)>
+            {
+                { "/api/ps", (HttpStatusCode.OK, @"{ ""models"": [] }", "application/json") },
+                { "/api/version", (HttpStatusCode.OK, versionJson, "application/json") }
+            });
+
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:11434") };
+            var adapter = new OllamaAdapter(httpClient);
+
+            // Act
+            var summary = await adapter.GetRuntimeSummaryAsync();
+
+            // Assert
+            summary.Should().NotBeNull();
+            summary.RuntimeVersion.Should().Be("0.31.1");
+            summary.IsAvailable.Should().BeTrue();
         }
 
         [Fact]
@@ -115,6 +139,54 @@ namespace ModelPulse.Tests
             // Assert
             sample.PromptTokensPerSecond.Should().BeApproximately(50.0, 0.01);
             sample.GenerationTokensPerSecond.Should().BeApproximately(50.0, 0.01);
+        }
+
+        [Fact]
+        public async Task OllamaAdapter_GetPerformanceSample_ParsesServerLog()
+        {
+            // Arrange: Create a temporary file to mock Ollama server.log
+            var tempFile = Path.GetTempFileName();
+            try
+            {
+                var initialLogLines = @"
+slot print_timing: id  0 | task 0 | prompt eval time =     100.00 ms /   100 tokens (    1.00 ms per token,  1000.00 tokens per second)
+slot print_timing: id  0 | task 0 |        eval time =     500.00 ms /    25 tokens (   20.00 ms per token,    50.00 tokens per second)
+";
+                await File.WriteAllTextAsync(tempFile, initialLogLines);
+
+                var httpClient = new HttpClient { BaseAddress = new Uri("http://127.0.0.1:11434") };
+                // Initialize adapter pointing to our mock temp file
+                var adapter = new OllamaAdapter(httpClient, tempFile);
+
+                // Act
+                var sample = await adapter.GetPerformanceSampleAsync();
+
+                // Assert
+                sample.Should().NotBeNull();
+                sample.PromptTokensPerSecond.Should().Be(1000.0);
+                sample.GenerationTokensPerSecond.Should().Be(50.0);
+
+                // Append a new generation result to the log
+                var newLogLines = @"
+slot print_timing: id  0 | task 1 | prompt eval time =     200.00 ms /   100 tokens (    2.00 ms per token,   500.00 tokens per second)
+slot print_timing: id  0 | task 1 |        eval time =    1000.00 ms /    80 tokens (   12.50 ms per token,    80.00 tokens per second)
+";
+                await File.AppendAllTextAsync(tempFile, newLogLines);
+
+                // Act again
+                var sample2 = await adapter.GetPerformanceSampleAsync();
+
+                // Assert second parse updates correctly
+                sample2.PromptTokensPerSecond.Should().Be(500.0);
+                sample2.GenerationTokensPerSecond.Should().Be(80.0);
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
         }
 
         // ─── llama.cpp Adapter ─────────────────────────────────────────
@@ -176,6 +248,77 @@ llamacpp:slots_active 2
             sample.Should().NotBeNull();
             sample.ActiveSlots.Should().Be(2);
             sample.IdleSlots.Should().Be(3);
+        }
+
+        [Fact]
+        public async Task LlamaCppAdapter_GetPerformanceSample_CalculatesThroughputOverTime()
+        {
+            // Arrange
+            var healthJson = @"{ ""status"": ""ok"", ""slots_idle"": 3, ""slots_processing"": 1 }";
+            
+            var metricsCallCount = 0;
+            var handler = new DynamicMockHttpHandler(req =>
+            {
+                var path = req.RequestUri?.AbsolutePath ?? "/";
+                if (path == "/health")
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(healthJson, Encoding.UTF8, "application/json")
+                    };
+                }
+                else if (path == "/metrics")
+                {
+                    metricsCallCount++;
+                    // Return first metrics state on first call, and second metrics state (increased values) on second call
+                    var metricsText = metricsCallCount == 1
+                        ? "llamacpp:prompt_tokens_total 1000\nllamacpp:tokens_predicted_total 2000\nllamacpp:slots_active 1\n"
+                        : "llamacpp:prompt_tokens_total 1050\nllamacpp:tokens_predicted_total 2100\nllamacpp:slots_active 1\n";
+                    
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(metricsText, Encoding.UTF8, "text/plain")
+                    };
+                }
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:8080") };
+            var adapter = new LlamaCppAdapter(httpClient);
+
+            // Act: Call 1
+            var sample1 = await adapter.GetPerformanceSampleAsync();
+
+            // Wait a short duration
+            await Task.Delay(100);
+
+            // Act: Call 2
+            var sample2 = await adapter.GetPerformanceSampleAsync();
+
+            // Assert
+            sample1.PromptTokensPerSecond.Should().BeNull();
+            sample1.GenerationTokensPerSecond.Should().BeNull();
+
+            sample2.PromptTokensPerSecond.Should().NotBeNull();
+            sample2.GenerationTokensPerSecond.Should().NotBeNull();
+
+            sample2.PromptTokensPerSecond!.Value.Should().BeGreaterThan(0);
+            sample2.GenerationTokensPerSecond!.Value.Should().BeGreaterThan(0);
+        }
+    }
+
+    internal class DynamicMockHttpHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _handler;
+
+        public DynamicMockHttpHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            _handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_handler(request));
         }
     }
 

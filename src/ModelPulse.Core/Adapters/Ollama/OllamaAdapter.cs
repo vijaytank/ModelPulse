@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using System.IO;
+using System.Text.RegularExpressions;
 using ModelPulse.Core.Adapters.Ollama;
 using ModelPulse.Core.Models;
 
@@ -28,14 +30,14 @@ namespace ModelPulse.Core.Adapters.Ollama
         private static readonly HashSet<string> KnownTopLevelFields = new(StringComparer.OrdinalIgnoreCase)
         {
             "name", "model", "size", "digest", "details",
-            "expires_at", "size_vram", "processor"
+            "expires_at", "size_vram", "processor", "context_length"
         };
 
         // Known fields inside OllamaModelDetails
         private static readonly HashSet<string> KnownDetailFields = new(StringComparer.OrdinalIgnoreCase)
         {
             "parent_model", "format", "family", "families",
-            "parameter_size", "quantization_level", "context_length", "embedding_length"
+            "parameter_size", "quantization_level", "embedding_length"
         };
 
         private static readonly JsonSerializerOptions JsonOpts = new()
@@ -43,9 +45,24 @@ namespace ModelPulse.Core.Adapters.Ollama
             PropertyNameCaseInsensitive = true
         };
 
-        public OllamaAdapter(HttpClient httpClient)
+        private readonly string _logPath;
+        private long _lastLogPosition = 0;
+        private double? _lastPromptTps;
+        private double? _lastGenTps;
+        private static readonly Regex TpsNumberRegex = new(@"([\d\.]+)\s+tokens per second", RegexOptions.Compiled);
+
+        public OllamaAdapter(HttpClient httpClient, string? logPath = null)
         {
             _httpClient = httpClient;
+            if (logPath != null)
+            {
+                _logPath = logPath;
+            }
+            else
+            {
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                _logPath = Path.Combine(localAppData, "Ollama", "server.log");
+            }
         }
 
         /// <inheritdoc/>
@@ -66,17 +83,25 @@ namespace ModelPulse.Core.Adapters.Ollama
         public async Task<RuntimeSummary> GetRuntimeSummaryAsync()
         {
             var available = await IsAvailableAsync();
-
-            // Ollama version is returned in a response header X-Ollama-Version
-            // when querying any endpoint. We attempt to read it.
             string version = "Unknown";
-            try
+
+            if (available)
             {
-                var response = await _httpClient.GetAsync("/api/ps");
-                if (response.Headers.TryGetValues("X-Ollama-Version", out var values))
-                    version = string.Join("", values);
+                try
+                {
+                    var response = await _httpClient.GetAsync("/api/version");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        var doc = JsonDocument.Parse(content);
+                        if (doc.RootElement.TryGetProperty("version", out var versionProp))
+                        {
+                            version = versionProp.GetString() ?? "Unknown";
+                        }
+                    }
+                }
+                catch { }
             }
-            catch { }
 
             return new RuntimeSummary
             {
@@ -108,10 +133,67 @@ namespace ModelPulse.Core.Adapters.Ollama
         /// <inheritdoc/>
         public async Task<PerformanceSample> GetPerformanceSampleAsync()
         {
-            // Performance metrics for Ollama come from generate/chat responses,
-            // not from /api/ps. The CollectorCore will call this with the last
-            // captured response body counters. For now, return empty sample.
-            return await Task.FromResult(new PerformanceSample { RuntimeName = RuntimeName });
+            var sample = new PerformanceSample { RuntimeName = RuntimeName };
+
+            try
+            {
+                if (File.Exists(_logPath))
+                {
+                    var fileInfo = new FileInfo(_logPath);
+                    lock (_lock)
+                    {
+                        // Handle log rotation or first run
+                        if (_lastLogPosition == 0 || fileInfo.Length < _lastLogPosition)
+                        {
+                            _lastLogPosition = Math.Max(0, fileInfo.Length - 4096); // start near the end (last 4KB) to avoid reading huge historic logs
+                        }
+
+                        if (fileInfo.Length > _lastLogPosition)
+                        {
+                            using var stream = new FileStream(_logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            stream.Position = _lastLogPosition;
+                            using var reader = new StreamReader(stream);
+
+                            string? line;
+                            while ((line = reader.ReadLine()) != null)
+                            {
+                                if (line.Contains("prompt eval time ="))
+                                {
+                                    var match = TpsNumberRegex.Match(line);
+                                    if (match.Success && double.TryParse(match.Groups[1].Value, out var val))
+                                    {
+                                        if (val < 9999.0)
+                                        {
+                                            _lastPromptTps = val;
+                                        }
+                                    }
+                                }
+                                else if (line.Contains("eval time ="))
+                                {
+                                    var match = TpsNumberRegex.Match(line);
+                                    if (match.Success && double.TryParse(match.Groups[1].Value, out var val))
+                                    {
+                                        if (val < 9999.0)
+                                        {
+                                            _lastGenTps = val;
+                                        }
+                                    }
+                                }
+                            }
+                            _lastLogPosition = stream.Position;
+                        }
+
+                        sample.PromptTokensPerSecond = _lastPromptTps;
+                        sample.GenerationTokensPerSecond = _lastGenTps;
+                    }
+                }
+            }
+            catch
+            {
+                // Degrade gracefully
+            }
+
+            return await Task.FromResult(sample);
         }
 
         /// <summary>
@@ -184,7 +266,7 @@ namespace ModelPulse.Core.Adapters.Ollama
                         SizeBytes = modelObj["size"]?.GetValue<long>() ?? 0,
                         SizeVramBytes = GetNullableLong(modelObj, "size_vram"),
                         ExpiresAt = GetNullableDateTime(modelObj, "expires_at"),
-                        ContextLength = GetNullableLong(detailsObj, "context_length"),
+                        ContextLength = GetNullableLong(modelObj, "context_length"),
                         QuantizationLevel = detailsObj?["quantization_level"]?.GetValue<string>(),
                         ParameterSize = detailsObj?["parameter_size"]?.GetValue<string>(),
                         Family = detailsObj?["family"]?.GetValue<string>()

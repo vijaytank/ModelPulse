@@ -19,7 +19,7 @@ The compact overlay is the always-on-top view used during active work.
 ### Behavior
 - Runtime-specific detail rows appear only when their runtime is detected.[cite:5][cite:40]
 - If more than one runtime is active, the compact overlay shows a short runtime summary rather than full details.
-- Clicking expands into the expanded overlay.
+- Double-clicking expands into the expanded overlay, while single-clicking and dragging moves the overlay.
 
 ## Expanded Overlay
 

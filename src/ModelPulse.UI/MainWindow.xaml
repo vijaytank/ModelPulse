@@ -5,12 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="ModelPulse Overlay" 
-        Height="420" Width="300"
+        Height="420" Width="320"
         WindowStyle="None" 
+        ResizeMode="NoResize"
         AllowsTransparency="True" 
         Background="Transparent"
         Topmost="True" 
         ShowInTaskbar="False"
+        Icon="Resources/app_icon.png"
         FontFamily="Inter, Outfit, Segoe UI">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -79,7 +81,7 @@
         <!-- 1. COMPACT OVERLAY VIEW -->
         <Border Style="{StaticResource OverlayCard}" 
                 VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                Width="280" Height="75" Margin="10"
+                Width="300" Height="75" Margin="10"
                 Cursor="Hand" MouseLeftButtonDown="CompactOverlay_Click"
                 Visibility="{Binding CompactVisibility}">
             <Border.Effect>
@@ -87,17 +89,17 @@
             </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*" MinWidth="205"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
+ 
                 <!-- Close Button in top right of Compact Overlay -->
-                <Button Content="×" 
+                <Button Grid.Column="1" Content="×" 
                         HorizontalAlignment="Right" VerticalAlignment="Top" 
                         Background="Transparent" BorderThickness="0" Foreground="#55FFFFFF"
                         FontSize="14" FontWeight="Bold" Margin="0 -8 -4 0" Cursor="Hand"
                         Click="Hide_Click" ToolTip="Hide Overlay" Panel.ZIndex="10"/>
-
+ 
                 <!-- Resource Stats Grid -->
                 <Grid Grid.Column="0">
                     <Grid.RowDefinitions>
@@ -107,18 +109,18 @@
                     
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="CPU " Foreground="#88FFFFFF" FontSize="10" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding CpuText}" Foreground="White" FontSize="10" FontWeight="Bold" Margin="0 0 12 0"/>
-
+                        <TextBlock Text="{Binding CpuText}" Foreground="White" FontSize="10" FontWeight="Bold" Margin="0 0 10 0"/>
+ 
                         <TextBlock Text="RAM " Foreground="#88FFFFFF" FontSize="10" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding RamText}" Foreground="White" FontSize="10" FontWeight="Bold" Margin="0 0 12 0"/>
-
+                        <TextBlock Text="{Binding RamText}" Foreground="White" FontSize="10" FontWeight="Bold" Margin="0 0 10 0"/>
+ 
                         <TextBlock Text="GPU " Foreground="#88FFFFFF" FontSize="10" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding GpuText}" Foreground="White" FontSize="10" FontWeight="Bold"/>
                     </StackPanel>
                     
                     <TextBlock Grid.Row="1" Text="{Binding ActiveModelName}" Foreground="#FF00FFFF" FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
                 </Grid>
-
+ 
                 <!-- Throughput Badge -->
                 <Border Grid.Column="1" Background="#22512BD4" CornerRadius="6" Padding="6 4" VerticalAlignment="Center" Margin="10 0 0 0">
                     <TextBlock Text="{Binding ThroughputText}" Foreground="White" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>

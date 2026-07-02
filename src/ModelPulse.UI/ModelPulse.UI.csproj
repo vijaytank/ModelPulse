@@ -16,4 +16,9 @@
     <ProjectReference Include="..\ModelPulse.Core\ModelPulse.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="Resources\app_icon.png" />
+    <Resource Include="Resources\tray_icon.ico" />
+  </ItemGroup>
+
 </Project>

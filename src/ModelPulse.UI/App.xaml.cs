@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
 using ModelPulse.Core.Adapters;
@@ -65,6 +66,9 @@ namespace ModelPulse.UI
 
             _alertEngine = new AlertEngine(_configService);
 
+            // 4. Initialize Tray Icon first so it is available for alerts
+            InitializeTrayIcon();
+
             // Forward snapshots to Alert Engine
             _snapshotSubscription = _collectorService.Snapshots.Subscribe(snapshot =>
             {
@@ -90,15 +94,19 @@ namespace ModelPulse.UI
                         _ => "ModelPulse - INFO"
                     };
 
-                    _taskbarIcon?.ShowNotification(title, alert.Message, notificationIcon);
+                    try
+                    {
+                        _taskbarIcon?.ShowNotification(title, alert.Message, notificationIcon);
+                    }
+                    catch
+                    {
+                        // Avoid crashes if tray icon has not registered fully yet
+                    }
                 }));
             });
 
             // Start background collection loop
             await _collectorService.StartAsync();
-
-            // 4. Initialize Tray Icon
-            InitializeTrayIcon();
 
             // 5. Show Overlay Window on first launch for visibility
             ShowOverlay();
@@ -108,9 +116,39 @@ namespace ModelPulse.UI
         {
             _taskbarIcon = new TaskbarIcon
             {
-                Icon = System.Drawing.SystemIcons.Application,
-                ToolTipText = "ModelPulse - Local AI Telemetry"
+                ToolTipText = "ModelPulse - Local AI Telemetry",
+                MenuActivation = PopupActivationMode.LeftOrRightClick
             };
+
+            try
+            {
+                var resourceUri = new Uri("pack://application:,,,/ModelPulse.UI;component/Resources/tray_icon.ico");
+                var resourceInfo = Application.GetResourceStream(resourceUri);
+                if (resourceInfo != null)
+                {
+                    using (var stream = resourceInfo.Stream)
+                    {
+                        _taskbarIcon.Icon = new System.Drawing.Icon(stream);
+                    }
+                }
+                else
+                {
+                    _taskbarIcon.Icon = System.Drawing.SystemIcons.Application;
+                }
+            }
+            catch
+            {
+                _taskbarIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+
+            try
+            {
+                _taskbarIcon.ForceCreate();
+            }
+            catch
+            {
+                // Gracefully degrade in headless/test environments where taskbar is not present
+            }
             this.Resources.Add("TrayIcon", _taskbarIcon);
 
             // Build Context Menu
@@ -205,7 +243,7 @@ namespace ModelPulse.UI
             }
 
             _taskbarIcon?.Dispose();
-            _overlayWindow?.Close();
+            _overlayWindow?.ExplicitClose();
 
             Shutdown();
         }

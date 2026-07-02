@@ -342,7 +342,7 @@ namespace ModelPulse.UI.ViewModels
                 ModelVramText = "-";
                 ContextLengthText = "-";
                 UnloadTimerText = "-";
-                ThroughputText = perf?.ActiveSlots.HasValue == true ? $"Slots: {perf.ActiveSlots.Value} active" : "0.0 t/s";
+                ThroughputText = perf?.GenerationTokensPerSecond.HasValue == true ? $"{perf.GenerationTokensPerSecond.Value:F1} t/s" : "0.0 t/s";
             }
             else
             {

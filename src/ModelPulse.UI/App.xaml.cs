@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -163,6 +164,12 @@ namespace ModelPulse.UI
             var pausePollingItem = new MenuItem { Header = "Pause Polling" };
             pausePollingItem.Click += (s, ev) => TogglePolling(pausePollingItem);
 
+            var refreshItem = new MenuItem { Header = "Refresh Now" };
+            refreshItem.Click += (s, ev) => ForceRefresh();
+
+            var settingsItem = new MenuItem { Header = "Open Settings..." };
+            settingsItem.Click += (s, ev) => OpenSettings();
+
             var exportItem = new MenuItem { Header = "Export Diagnostics..." };
             exportItem.Click += (s, ev) => ExportDiagnostics();
 
@@ -173,6 +180,9 @@ namespace ModelPulse.UI
             menu.Items.Add(hideOverlayItem);
             menu.Items.Add(new Separator());
             menu.Items.Add(pausePollingItem);
+            menu.Items.Add(refreshItem);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(settingsItem);
             menu.Items.Add(exportItem);
             menu.Items.Add(new Separator());
             menu.Items.Add(exitItem);
@@ -246,6 +256,46 @@ namespace ModelPulse.UI
             _overlayWindow?.ExplicitClose();
 
             Shutdown();
+        }
+
+        /// <summary>
+        /// Forces an immediate poll cycle by momentarily shortening the polling interval.
+        /// Restores normal adaptive scheduling after 500ms (one fast cycle).
+        /// Does NOT restart CollectorService — SetPollingInterval is hot-swappable.
+        /// </summary>
+        private void ForceRefresh()
+        {
+            if (_isPollingPaused) return;
+            _collectorService?.SetPollingInterval(TimeSpan.FromMilliseconds(100));
+            // Restore normal adaptive scheduling after one fast cycle
+            Task.Delay(500).ContinueWith(_ =>
+                Dispatcher.BeginInvoke(new Action(() =>
+                    _collectorService?.SetPollingInterval(TimeSpan.Zero))));
+        }
+
+        /// <summary>
+        /// Opens the Settings dialog. Passes live-apply callbacks so the
+        /// Settings window can update opacity and polling interval without
+        /// needing a reference to MainWindow or CollectorService directly.
+        /// </summary>
+        private void OpenSettings()
+        {
+            var settingsWindow = new SettingsWindow(
+                _configService!,
+                newOpacity =>
+                {
+                    if (_overlayWindow != null)
+                        _overlayWindow.Dispatcher.BeginInvoke(new Action(() =>
+                            _overlayWindow.Opacity = newOpacity));
+                },
+                newInterval =>
+                {
+                    _collectorService?.SetPollingInterval(newInterval);
+                });
+
+            settingsWindow.Owner = _overlayWindow;
+            settingsWindow.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+            settingsWindow.ShowDialog();
         }
 
         private void ExportDiagnostics()

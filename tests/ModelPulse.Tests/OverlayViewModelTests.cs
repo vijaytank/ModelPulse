@@ -124,5 +124,51 @@ namespace ModelPulse.Tests
             viewModel.HistoryCpuAvg.Should().Be("20%");
             viewModel.HistoryRamAvg.Should().Be("2.0 GB");
         }
+        [Fact]
+        public void ViewModel_SparklinePoints_ArePopulatedAfterSnapshots()
+        {
+            // Arrange
+            using var viewModel = new OverlayViewModel(_mockCollector.Object, _mockConfig.Object);
+
+            var now = DateTime.UtcNow;
+            var snaps = new[]
+            {
+                new CollectorSnapshot { Timestamp = now.AddMinutes(-2), System = new SystemTelemetryState { CpuPercent = 20 } },
+                new CollectorSnapshot { Timestamp = now.AddMinutes(-1), System = new SystemTelemetryState { CpuPercent = 40 } },
+                new CollectorSnapshot { Timestamp = now,                System = new SystemTelemetryState { CpuPercent = 60 } }
+            };
+
+            // Act
+            foreach (var s in snaps)
+                _snapshotsSubject.OnNext(s);
+
+            // Assert: sparkline points are produced (one per sample)
+            viewModel.CpuSparklinePoints.Should().HaveCount(3,
+                "each snapshot should produce one sparkline point");
+            viewModel.RamSparklinePoints.Should().HaveCount(3);
+        }
+
+        [Fact]
+        public void ViewModel_SparklinePoints_AreNotUnbounded()
+        {
+            // Arrange: send more than 5 minutes worth of samples
+            using var viewModel = new OverlayViewModel(_mockCollector.Object, _mockConfig.Object);
+
+            var now = DateTime.UtcNow;
+            // Send 10 samples; oldest 5 are >5 min ago and should be pruned
+            for (int i = 10; i >= 1; i--)
+            {
+                _snapshotsSubject.OnNext(new CollectorSnapshot
+                {
+                    Timestamp = now.AddMinutes(-i),
+                    System    = new SystemTelemetryState { CpuPercent = i * 5 }
+                });
+            }
+
+            // Assert: only the last 5 minutes of samples remain (5 snapshots: t=-4 through t=-0)
+            // t=-10 .. t=-6 are pruned; t=-5 .. t=-1 remain (5 points)
+            viewModel.CpuSparklinePoints.Count.Should().BeLessOrEqualTo(6,
+                "history queue must be bounded to a 5-minute window");
+        }
     }
 }

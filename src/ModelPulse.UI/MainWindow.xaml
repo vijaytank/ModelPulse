@@ -224,25 +224,66 @@
                     <StackPanel>
                         <TextBlock Text="LAST 5 MINUTES TRENDS" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="0 0 0 8"/>
                         <UniformGrid Columns="2" Rows="2">
-                            <StackPanel Margin="0 0 0 6">
-                                <TextBlock Text="CPU Avg" Foreground="#88FFFFFF" FontSize="9"/>
-                                <TextBlock Text="{Binding HistoryCpuAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+
+                            <!-- CPU Sparkline -->
+                            <StackPanel Margin="0 0 4 8">
+                                <TextBlock Text="CPU Avg" Foreground="#88FFFFFF" FontSize="9" Margin="0 0 0 2"/>
+                                <Canvas Height="32" ClipToBounds="True">
+                                    <Polyline Points="{Binding CpuSparklinePoints}"
+                                              Stroke="#7047D6" StrokeThickness="1.5"
+                                              StrokeLineJoin="Round"
+                                              Canvas.Left="0" Canvas.Top="0"/>
+                                </Canvas>
+                                <TextBlock Text="{Binding HistoryCpuAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold" Margin="0 2 0 0"/>
                             </StackPanel>
-                            <StackPanel Margin="0 0 0 6">
-                                <TextBlock Text="RAM Avg" Foreground="#88FFFFFF" FontSize="9"/>
-                                <TextBlock Text="{Binding HistoryRamAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+
+                            <!-- RAM Sparkline -->
+                            <StackPanel Margin="4 0 0 8">
+                                <TextBlock Text="RAM Avg" Foreground="#88FFFFFF" FontSize="9" Margin="0 0 0 2"/>
+                                <Canvas Height="32" ClipToBounds="True">
+                                    <Polyline Points="{Binding RamSparklinePoints}"
+                                              Stroke="#0EA5E9" StrokeThickness="1.5"
+                                              StrokeLineJoin="Round"
+                                              Canvas.Left="0" Canvas.Top="0"/>
+                                </Canvas>
+                                <TextBlock Text="{Binding HistoryRamAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold" Margin="0 2 0 0"/>
                             </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="GPU Avg" Foreground="#88FFFFFF" FontSize="9"/>
-                                <TextBlock Text="{Binding HistoryGpuAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+
+                            <!-- GPU Sparkline -->
+                            <StackPanel Margin="0 0 4 0">
+                                <TextBlock Text="GPU Avg" Foreground="#88FFFFFF" FontSize="9" Margin="0 0 0 2"/>
+                                <Canvas Height="32" ClipToBounds="True">
+                                    <Polyline Points="{Binding GpuSparklinePoints}"
+                                              Stroke="#10B981" StrokeThickness="1.5"
+                                              StrokeLineJoin="Round"
+                                              Canvas.Left="0" Canvas.Top="0"/>
+                                </Canvas>
+                                <TextBlock Text="{Binding HistoryGpuAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold" Margin="0 2 0 0"/>
                             </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="Pressure Events" Foreground="#88FFFFFF" FontSize="9"/>
-                                <TextBlock Text="{Binding HistoryPressureEvents}" Foreground="#FFFF5555" FontSize="11" FontWeight="SemiBold"/>
+
+                            <!-- t/s Sparkline -->
+                            <StackPanel Margin="4 0 0 0">
+                                <TextBlock Text="Throughput Avg" Foreground="#88FFFFFF" FontSize="9" Margin="0 0 0 2"/>
+                                <Canvas Height="32" ClipToBounds="True">
+                                    <Polyline Points="{Binding TpsSparklinePoints}"
+                                              Stroke="#F59E0B" StrokeThickness="1.5"
+                                              StrokeLineJoin="Round"
+                                              Canvas.Left="0" Canvas.Top="0"/>
+                                </Canvas>
+                                <TextBlock Text="{Binding HistoryTpsAvg}" Foreground="White" FontSize="11" FontWeight="SemiBold" Margin="0 2 0 0"/>
                             </StackPanel>
+
                         </UniformGrid>
+
+                        <!-- Pressure events row (kept separate for visibility) -->
+                        <Grid Margin="0 6 0 0">
+                            <TextBlock Text="Pressure Events (5 min):" Foreground="#88FFFFFF" FontSize="10"/>
+                            <TextBlock Text="{Binding HistoryPressureEvents}" Foreground="#FFFF5555"
+                                       FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
+
             </Grid>
         </Border>
     </Grid>

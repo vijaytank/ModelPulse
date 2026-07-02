@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using ModelPulse.Core.Models;
 using ModelPulse.Core.Services;
 using ModelPulse.Core.Services.Config;
@@ -54,6 +55,12 @@ namespace ModelPulse.UI.ViewModels
         private string _historyGpuAvg = "-";
         private string _historyTpsAvg = "-";
         private string _historyPressureEvents = "0";
+
+        // Sparkline backing fields (WPF PointCollection for Polyline binding)
+        private PointCollection _cpuSparkline = new();
+        private PointCollection _ramSparkline = new();
+        private PointCollection _gpuSparkline = new();
+        private PointCollection _tpsSparkline = new();
 
         // ─── Public Properties ─────────────────────────────────────────
         public bool IsCompactMode
@@ -232,6 +239,35 @@ namespace ModelPulse.UI.ViewModels
         {
             get => _historyPressureEvents;
             set => SetProperty(ref _historyPressureEvents, value);
+        }
+
+        // ─── Sparkline Properties ──────────────────────────────────────
+        /// <summary>Normalized CPU sparkline points for last-5-min Polyline binding.</summary>
+        public PointCollection CpuSparklinePoints
+        {
+            get => _cpuSparkline;
+            private set { _cpuSparkline = value; OnPropertyChanged(nameof(CpuSparklinePoints)); }
+        }
+
+        /// <summary>Normalized RAM sparkline points for last-5-min Polyline binding.</summary>
+        public PointCollection RamSparklinePoints
+        {
+            get => _ramSparkline;
+            private set { _ramSparkline = value; OnPropertyChanged(nameof(RamSparklinePoints)); }
+        }
+
+        /// <summary>Normalized GPU sparkline points for last-5-min Polyline binding.</summary>
+        public PointCollection GpuSparklinePoints
+        {
+            get => _gpuSparkline;
+            private set { _gpuSparkline = value; OnPropertyChanged(nameof(GpuSparklinePoints)); }
+        }
+
+        /// <summary>Normalized t/s sparkline points for last-5-min Polyline binding.</summary>
+        public PointCollection TpsSparklinePoints
+        {
+            get => _tpsSparkline;
+            private set { _tpsSparkline = value; OnPropertyChanged(nameof(TpsSparklinePoints)); }
         }
 
         // ─── Constructor & Setup ───────────────────────────────────────
@@ -424,6 +460,74 @@ namespace ModelPulse.UI.ViewModels
             HistoryGpuAvg = gpuCount > 0 ? $"{gpuSum / gpuCount:F0}%" : "Unavailable";
             HistoryTpsAvg = tpsCount > 0 ? $"{tpsSum / tpsCount:F1} t/s" : "0.0 t/s";
             HistoryPressureEvents = $"{pressureEvents}";
+
+            // Rebuild sparkline point collections from the current queue
+            RebuildSparklines();
+        }
+
+        /// <summary>
+        /// Rebuilds WPF PointCollection objects from the 5-minute history queue.
+        /// X is the sample index (0..N-1), Y is normalized to the canvas height (0=top, 40=bottom).
+        /// Uses a fixed canvas height of 40px to match the XAML Canvas.Height.
+        /// Max values are computed per-rebuild for natural auto-scaling.
+        /// </summary>
+        private void RebuildSparklines()
+        {
+            const double canvasHeight = 40.0;
+            const double canvasWidth  = 360.0; // approximate expanded overlay width
+
+            var samples = _historyQueue.ToArray();
+            int count = samples.Length;
+            if (count == 0) return;
+
+            // Compute max values for normalization (avoid divide-by-zero)
+            double maxCpu = Math.Max(1.0, samples.Max(s => s.System.CpuPercent));
+            double maxRam = Math.Max(1.0, samples.Max(s => s.System.RamUsedMb));
+            double maxGpu = Math.Max(1.0, samples.Where(s => s.System.Gpu.SourcePath != "Unavailable")
+                                                  .Select(s => s.System.Gpu.UtilizationPercent)
+                                                  .DefaultIfEmpty(1.0).Max());
+            double maxTps = Math.Max(0.1, samples.SelectMany(s => s.Performance)
+                                                   .Where(p => p.GenerationTokensPerSecond.HasValue)
+                                                   .Select(p => p.GenerationTokensPerSecond!.Value)
+                                                   .DefaultIfEmpty(0.1).Max());
+
+            var cpuPts  = new PointCollection(count);
+            var ramPts  = new PointCollection(count);
+            var gpuPts  = new PointCollection(count);
+            var tpsPts  = new PointCollection(count);
+
+            for (int i = 0; i < count; i++)
+            {
+                double x = count == 1 ? 0 : (i / (double)(count - 1)) * canvasWidth;
+
+                // Y: invert so high value = near top (low Y in WPF coords)
+                double cpuY  = canvasHeight - (samples[i].System.CpuPercent / maxCpu) * canvasHeight;
+                double ramY  = canvasHeight - (samples[i].System.RamUsedMb   / maxRam) * canvasHeight;
+
+                double gpuUtil = samples[i].System.Gpu.SourcePath != "Unavailable"
+                    ? samples[i].System.Gpu.UtilizationPercent : 0;
+                double gpuY  = canvasHeight - (gpuUtil / maxGpu) * canvasHeight;
+
+                var perfSample = samples[i].Performance.FirstOrDefault(p => p.GenerationTokensPerSecond.HasValue);
+                double tpsVal = perfSample?.GenerationTokensPerSecond ?? 0;
+                double tpsY  = canvasHeight - (tpsVal / maxTps) * canvasHeight;
+
+                cpuPts.Add(new Point(x, cpuY));
+                ramPts.Add(new Point(x, ramY));
+                gpuPts.Add(new Point(x, gpuY));
+                tpsPts.Add(new Point(x, tpsY));
+            }
+
+            // Freeze for performance (read-only after creation is safe for WPF bindings)
+            cpuPts.Freeze();
+            ramPts.Freeze();
+            gpuPts.Freeze();
+            tpsPts.Freeze();
+
+            CpuSparklinePoints = cpuPts;
+            RamSparklinePoints = ramPts;
+            GpuSparklinePoints = gpuPts;
+            TpsSparklinePoints = tpsPts;
         }
 
         public void Dispose()

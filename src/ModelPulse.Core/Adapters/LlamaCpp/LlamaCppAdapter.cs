@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text.Json;
+using System.Linq;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using ModelPulse.Core.Adapters.LlamaCpp;
 using ModelPulse.Core.Models;
@@ -35,6 +38,13 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
         private double? _lastPredictedTokens;
         private DateTime? _lastMetricsTime;
 
+        // Slots tracking for fallback telemetry (e.g. when /metrics is not supported)
+        private readonly Dictionary<int, (int id_task, int n_decoded, int n_prompt)> _lastSlotTasks = new();
+        private double _sessionGeneratedTokens;
+        private double _sessionPromptTokens;
+        private double _lastSessionGeneratedTokens;
+        private double _lastSessionPromptTokens;
+
         public LlamaCppAdapter(HttpClient httpClient)
         {
             _httpClient = httpClient;
@@ -63,25 +73,112 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
         public async Task<RuntimeSummary> GetRuntimeSummaryAsync()
         {
             var available = await IsAvailableAsync();
+            string version = "Unknown";
 
-            // llama.cpp does not expose a version API endpoint in the standard build.
-            // Version is logged as "Unknown" unless captured from server startup logs.
+            if (available)
+            {
+                try
+                {
+                    var response = await _httpClient.GetAsync("/props");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(content);
+                        if (doc.RootElement.TryGetProperty("build_info", out var buildInfoProp))
+                        {
+                            var buildInfo = buildInfoProp.GetString();
+                            if (!string.IsNullOrEmpty(buildInfo))
+                            {
+                                version = buildInfo;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore, fallback to Unknown
+                }
+            }
+
             return new RuntimeSummary
             {
                 RuntimeName = RuntimeName,
-                RuntimeVersion = "Unknown",
+                RuntimeVersion = version,
                 IsAvailable = available,
                 Endpoint = _httpClient.BaseAddress?.ToString() ?? "http://127.0.0.1:8080",
-                Notes = "llama.cpp does not expose a version endpoint; version captured from diagnostics only."
+                Notes = "llama.cpp details resolved via /props and OpenAI /v1/models endpoints."
             };
         }
 
         /// <inheritdoc/>
         public async Task<IReadOnlyList<ActiveModelInfo>> GetActiveModelsAsync()
         {
-            // llama.cpp does not expose a running models list via a standard endpoint.
-            // Active slot state is returned as part of GetPerformanceSampleAsync.
-            return await Task.FromResult(Array.Empty<ActiveModelInfo>());
+            var activeModels = new List<ActiveModelInfo>();
+            try
+            {
+                var response = await _httpClient.GetAsync("/v1/models");
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array)
+                    {
+                        var array = dataProp.EnumerateArray().ToList();
+                        string? loadedModelId = null;
+                        long? modelSizeBytes = null;
+                        int? contextLength = null;
+
+                        // 1. Look for status.value == "loaded"
+                        foreach (var modelElement in array)
+                        {
+                            if (modelElement.TryGetProperty("status", out var statusProp) &&
+                                statusProp.TryGetProperty("value", out var valueProp) &&
+                                valueProp.GetString() == "loaded")
+                            {
+                                loadedModelId = modelElement.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+                                if (modelElement.TryGetProperty("meta", out var metaProp))
+                                {
+                                    if (metaProp.TryGetProperty("size", out var sizeProp) && sizeProp.ValueKind == JsonValueKind.Number)
+                                        modelSizeBytes = sizeProp.GetInt64();
+                                    if (metaProp.TryGetProperty("n_ctx", out var ctxProp) && ctxProp.ValueKind == JsonValueKind.Number)
+                                        contextLength = ctxProp.GetInt32();
+                                }
+                                break;
+                            }
+                        }
+
+                        // 2. If not found and there is exactly 1 model in router, assume it's loaded (single-model fallback)
+                        if (string.IsNullOrEmpty(loadedModelId) && array.Count == 1)
+                        {
+                            var modelElement = array[0];
+                            loadedModelId = modelElement.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+                            if (modelElement.TryGetProperty("meta", out var metaProp))
+                            {
+                                if (metaProp.TryGetProperty("size", out var sizeProp) && sizeProp.ValueKind == JsonValueKind.Number)
+                                    modelSizeBytes = sizeProp.GetInt64();
+                                if (metaProp.TryGetProperty("n_ctx", out var ctxProp) && ctxProp.ValueKind == JsonValueKind.Number)
+                                    contextLength = ctxProp.GetInt32();
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(loadedModelId))
+                        {
+                            activeModels.Add(new ActiveModelInfo
+                            {
+                                RuntimeName = RuntimeName,
+                                ModelName = loadedModelId,
+                                SizeVramBytes = modelSizeBytes,
+                                ContextLength = contextLength
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LlamaCppAdapter] Error fetching active models: {ex.Message}");
+            }
+            return activeModels;
         }
 
         /// <inheritdoc/>
@@ -100,21 +197,114 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
                     sample.IdleSlots = health.SlotsIdle;
                 }
 
-                // Query Prometheus metrics for throughput and slot details
-                var metricsResponse = await _httpClient.GetAsync("/metrics");
-                if (metricsResponse.IsSuccessStatusCode)
+                // Query Prometheus metrics for throughput and slot details if available
+                bool metricsSupported = false;
+                LlamaCppMetrics metrics = new();
+                try
                 {
-                    var metricsContent = await metricsResponse.Content.ReadAsStringAsync();
-                    var metrics = ParseMetricsWithDriftDetection(metricsContent);
-                    sample.ActiveSlots = metrics.ActiveSlots > 0 ? metrics.ActiveSlots : sample.ActiveSlots;
-
-                    var now = DateTime.UtcNow;
-                    lock (_lock)
+                    var metricsResponse = await _httpClient.GetAsync("/metrics");
+                    if (metricsResponse.IsSuccessStatusCode)
                     {
-                        if (_lastMetricsTime.HasValue)
+                        var metricsContent = await metricsResponse.Content.ReadAsStringAsync();
+                        metrics = ParseMetricsWithDriftDetection(metricsContent);
+                        sample.ActiveSlots = metrics.ActiveSlots > 0 ? metrics.ActiveSlots : sample.ActiveSlots;
+                        metricsSupported = true;
+                    }
+                }
+                catch
+                {
+                    // Metrics endpoint not supported or failed
+                }
+
+                // Fallback to slots endpoint for active/idle slots and token calculations if metrics not supported
+                try
+                {
+                    var activeModels = await GetActiveModelsAsync();
+                    var loadedModelName = activeModels.FirstOrDefault()?.ModelName;
+                    var slotsUrl = !string.IsNullOrEmpty(loadedModelName) ? $"/slots?model={Uri.EscapeDataString(loadedModelName)}" : "/slots";
+                    var slotsResponse = await _httpClient.GetAsync(slotsUrl);
+                    if (slotsResponse.IsSuccessStatusCode)
+                    {
+                        var slotsContent = await slotsResponse.Content.ReadAsStringAsync();
+                        using var slotsDoc = JsonDocument.Parse(slotsContent);
+                        if (slotsDoc.RootElement.ValueKind == JsonValueKind.Array)
                         {
-                            var elapsedSeconds = (now - _lastMetricsTime.Value).TotalSeconds;
-                            if (elapsedSeconds > 0)
+                            int active = 0;
+                            int idle = 0;
+
+                            foreach (var slotElement in slotsDoc.RootElement.EnumerateArray())
+                            {
+                                bool isProcessing = slotElement.TryGetProperty("is_processing", out var ipProp) && ipProp.GetBoolean();
+                                if (isProcessing)
+                                    active++;
+                                else
+                                    idle++;
+
+                                int slotId = slotElement.TryGetProperty("id", out var idProp) ? idProp.GetInt32() : -1;
+                                if (slotId >= 0)
+                                {
+                                    int idTask = slotElement.TryGetProperty("id_task", out var taskProp) ? taskProp.GetInt32() : -1;
+                                    int nPrompt = slotElement.TryGetProperty("n_prompt_tokens_processed", out var ppProp) ? ppProp.GetInt32() : 0;
+                                    int nDecoded = 0;
+                                    if (slotElement.TryGetProperty("next_token", out var ntProp) && ntProp.ValueKind == JsonValueKind.Array && ntProp.GetArrayLength() > 0)
+                                    {
+                                        var firstToken = ntProp[0];
+                                        if (firstToken.TryGetProperty("n_decoded", out var ndProp))
+                                        {
+                                            nDecoded = ndProp.GetInt32();
+                                        }
+                                    }
+
+                                    if (idTask >= 0)
+                                    {
+                                        lock (_lock)
+                                        {
+                                            if (!_lastSlotTasks.TryGetValue(slotId, out var lastState) || lastState.id_task != idTask)
+                                            {
+                                                _sessionGeneratedTokens += nDecoded;
+                                                _sessionPromptTokens += nPrompt;
+                                            }
+                                            else
+                                            {
+                                                int deltaDecoded = nDecoded - lastState.n_decoded;
+                                                if (deltaDecoded > 0)
+                                                    _sessionGeneratedTokens += deltaDecoded;
+
+                                                int deltaPrompt = nPrompt - lastState.n_prompt;
+                                                if (deltaPrompt > 0)
+                                                    _sessionPromptTokens += deltaPrompt;
+                                            }
+
+                                            _lastSlotTasks[slotId] = (idTask, nDecoded, nPrompt);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If we don't have slots counts from /health, populate them from slots
+                            if (!sample.IdleSlots.HasValue)
+                            {
+                                sample.IdleSlots = idle;
+                            }
+                            sample.ActiveSlots = active;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[LlamaCppAdapter] Fallback slots telemetry error: {ex.Message}");
+                }
+
+                // Throughput speed calculations (token rates)
+                var now = DateTime.UtcNow;
+                lock (_lock)
+                {
+                    if (_lastMetricsTime.HasValue)
+                    {
+                        var elapsedSeconds = (now - _lastMetricsTime.Value).TotalSeconds;
+                        if (elapsedSeconds > 0)
+                        {
+                            if (metricsSupported)
                             {
                                 if (_lastPromptTokens.HasValue && metrics.PromptTokensTotal >= _lastPromptTokens.Value)
                                 {
@@ -125,12 +315,22 @@ namespace ModelPulse.Core.Adapters.LlamaCpp
                                     sample.GenerationTokensPerSecond = (metrics.TokensPredictedTotal - _lastPredictedTokens.Value) / elapsedSeconds;
                                 }
                             }
+                            else
+                            {
+                                sample.PromptTokensPerSecond = (_sessionPromptTokens - _lastSessionPromptTokens) / elapsedSeconds;
+                                sample.GenerationTokensPerSecond = (_sessionGeneratedTokens - _lastSessionGeneratedTokens) / elapsedSeconds;
+                            }
                         }
+                    }
 
+                    if (metricsSupported)
+                    {
                         _lastPromptTokens = metrics.PromptTokensTotal;
                         _lastPredictedTokens = metrics.TokensPredictedTotal;
-                        _lastMetricsTime = now;
                     }
+                    _lastSessionPromptTokens = _sessionPromptTokens;
+                    _lastSessionGeneratedTokens = _sessionGeneratedTokens;
+                    _lastMetricsTime = now;
                 }
             }
             catch

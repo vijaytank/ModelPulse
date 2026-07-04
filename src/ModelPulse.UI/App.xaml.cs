@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
 using ModelPulse.Core.Adapters;
@@ -293,7 +288,14 @@ namespace ModelPulse.UI
                 },
                 newInterval =>
                 {
-                    _collectorService?.SetPollingInterval(newInterval);
+                    if (newInterval == TimeSpan.Zero)
+                    {
+                        _collectorService?.ClearPollingOverride();
+                    }
+                    else
+                    {
+                        _collectorService?.SetPollingInterval(newInterval);
+                    }
                 });
 
             settingsWindow.Owner = _overlayWindow;

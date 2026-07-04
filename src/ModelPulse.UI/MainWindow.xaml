@@ -269,7 +269,15 @@
                             <TextBlock Text="SERVER DETAILS" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="0 0 0 6"/>
                             <Border Background="#11FFFFFF" Padding="10" CornerRadius="6" Margin="0 0 0 10">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding ActiveModelName}" Foreground="White" FontSize="12" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding ActiveModelName}" Foreground="White" FontSize="12" FontWeight="Bold" Margin="0 0 0 4"/>
+                                    <Grid Margin="0 0 0 4">
+                                        <TextBlock Text="VRAM Size:" Foreground="#88FFFFFF" FontSize="11"/>
+                                        <TextBlock Text="{Binding ModelVramText}" Foreground="White" FontSize="11" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                    <Grid>
+                                        <TextBlock Text="Context Length:" Foreground="#88FFFFFF" FontSize="11"/>
+                                        <TextBlock Text="{Binding ContextLengthText}" Foreground="White" FontSize="11" HorizontalAlignment="Right"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 

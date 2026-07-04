@@ -12,12 +12,13 @@ namespace ModelPulse.Core.Services.Config
     /// </summary>
     public class ConfigService : IConfigService
     {
-        private readonly string _filePath;
+        private readonly string? _filePath;
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = true
         };
 
+        // Consolidated property to resolve ambiguity errors (CS0229, CS0102)
         public ModelPulseSettings CurrentSettings { get; private set; } = new();
 
         public ConfigService(string? filePath = null)
@@ -49,8 +50,19 @@ namespace ModelPulse.Core.Services.Config
                 CurrentSettings = settings ?? new ModelPulseSettings();
                 ValidateAndEnforceBounds();
             }
-            catch
+            catch (JsonException ex)
             {
+                Debug.WriteLine($"[ConfigService] JSON deserialization failed. Using default settings. Error: {ex.Message}");
+                CurrentSettings = new ModelPulseSettings();
+            }
+            catch (IOException ex)
+            {
+                Debug.WriteLine($"[ConfigService] File I/O error during load. Using default settings. Error: {ex.Message}");
+                CurrentSettings = new ModelPulseSettings();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ConfigService] An unexpected error occurred during load. Using default settings. Error: {ex.Message}");
                 CurrentSettings = new ModelPulseSettings();
             }
         }
@@ -59,14 +71,15 @@ namespace ModelPulse.Core.Services.Config
         {
             try
             {
-                var dir = Path.GetDirectoryName(_filePath);
+                var filePath = _filePath ?? throw new InvalidOperationException("Config file path is not initialized.");
+                var dir = Path.GetDirectoryName(filePath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 {
                     Directory.CreateDirectory(dir);
                 }
 
                 var json = JsonSerializer.Serialize(CurrentSettings, JsonOptions);
-                File.WriteAllText(_filePath, json);
+                File.WriteAllText(filePath, json);
             }
             catch (Exception ex)
             {

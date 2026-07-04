@@ -1,4 +1,5 @@
 using FluentAssertions;
+using ModelPulse.Core.Models;
 using ModelPulse.Core.Services.System;
 using Xunit;
 
@@ -70,6 +71,37 @@ namespace ModelPulse.Tests
             state.RamTotalMb.Should().BeGreaterThan(0);
             state.WidgetRamMb.Should().BeGreaterThan(0,
                 "widget should report its own process working set");
+        }
+
+        [Fact]
+        public void SystemTelemetryProvider_WmiCaching_ReturnsCachedDataWithoutRequerying()
+        {
+            // Arrange
+            var provider = new TestTelemetryProvider();
+
+            // Act
+            var result1 = provider.CallCachedWmi();
+            var result2 = provider.CallCachedWmi();
+
+            // Assert
+            provider.WmiQueryCount.Should().Be(1, "WMI query should only be executed once and cached");
+            result1.Should().NotBeNull();
+            result1!.Name.Should().Be("Test GPU");
+            result1.Should().BeSameAs(result2);
+        }
+
+        private class TestTelemetryProvider : SystemTelemetryProvider
+        {
+            public int WmiQueryCount { get; private set; }
+
+            public GpuTelemetryState? CallCachedWmi()
+            {
+                return GetCachedData("WmiGpuState", () =>
+                {
+                    WmiQueryCount++;
+                    return new GpuTelemetryState { Name = "Test GPU", SourcePath = "WMI" };
+                });
+            }
         }
     }
 }

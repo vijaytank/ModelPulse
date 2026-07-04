@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using ModelPulse.Core.Models;
 using ModelPulse.Core.Services;
 using ModelPulse.Core.Services.Config;
-using ModelPulse.Core.Services.Polling;
+using ModelPulse.Core.Collections;
 
 namespace ModelPulse.UI.ViewModels
 {
@@ -20,7 +16,7 @@ namespace ModelPulse.UI.ViewModels
         private readonly ICollectorService _collectorService;
         private readonly IConfigService _configService;
         private readonly IDisposable _subscription;
-        private readonly Queue<CollectorSnapshot> _historyQueue = new();
+        private readonly CircularBuffer<CollectorSnapshot> _historyQueue = new(3000);
 
         // ─── Bindable Fields ───────────────────────────────────────────
         private bool _isCompactMode = true;
@@ -373,11 +369,24 @@ namespace ModelPulse.UI.ViewModels
             {
                 // Llama.cpp single-model status mapping
                 var perf = snapshot.Performance.FirstOrDefault(p => p.RuntimeName == "llama.cpp");
+                var activeModel = snapshot.ActiveModels.FirstOrDefault(m => m.RuntimeName == "llama.cpp");
 
-                ActiveModelName = IsLlamaCppActive ? "Active Server Model" : "No Model Loaded";
-                ModelVramText = "-";
-                ContextLengthText = "-";
-                UnloadTimerText = "-";
+                ActiveModelName = activeModel?.ModelName ?? (IsLlamaCppActive ? "Active Server Model" : "No Model Loaded");
+                
+                if (activeModel != null)
+                {
+                    double vramMb = (activeModel.SizeVramBytes ?? 0) / (1024.0 * 1024.0);
+                    ModelVramText = vramMb > 0 ? $"{vramMb:F0} MB VRAM" : "-";
+                    ContextLengthText = activeModel.ContextLength.HasValue ? $"{activeModel.ContextLength.Value}" : "-";
+                    UnloadTimerText = "-"; // Llama.cpp doesn't have unload timer
+                }
+                else
+                {
+                    ModelVramText = "-";
+                    ContextLengthText = "-";
+                    UnloadTimerText = "-";
+                }
+
                 ThroughputText = perf?.GenerationTokensPerSecond.HasValue == true ? $"{perf.GenerationTokensPerSecond.Value:F1} t/s" : "0.0 t/s";
             }
             else

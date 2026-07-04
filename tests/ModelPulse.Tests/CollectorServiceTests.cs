@@ -309,5 +309,93 @@ namespace ModelPulse.Tests
             snapshotsReceived.Should().HaveCount(2,
                 "after ClearPollingOverride + new SetPollingInterval(1s), should poll every 1s");
         }
+
+        [Fact]
+        public async Task CollectorService_AdapterSoftHealthCheck_ResilientToAdapterException()
+        {
+            // Arrange: Create a broken adapter that throws exceptions on everything,
+            // and a healthy adapter that returns successfully.
+            var mockBrokenAdapter = new Mock<IRuntimeAdapter>();
+            mockBrokenAdapter.Setup(a => a.RuntimeName).Returns("broken-runtime");
+            mockBrokenAdapter.Setup(a => a.IsAvailableAsync()).ThrowsAsync(new InvalidOperationException("Adapter crashed!"));
+
+            var mockHealthyAdapter = new Mock<IRuntimeAdapter>();
+            mockHealthyAdapter.Setup(a => a.RuntimeName).Returns("healthy-runtime");
+            mockHealthyAdapter.Setup(a => a.IsAvailableAsync()).ReturnsAsync(true);
+            mockHealthyAdapter.Setup(a => a.GetRuntimeSummaryAsync()).ReturnsAsync(new RuntimeSummary
+            {
+                RuntimeName = "healthy-runtime",
+                IsAvailable = true,
+                RuntimeVersion = "2.0.0"
+            });
+            mockHealthyAdapter.Setup(a => a.GetActiveModelsAsync()).ReturnsAsync(new List<ActiveModelInfo>());
+            mockHealthyAdapter.Setup(a => a.GetPerformanceSampleAsync()).ReturnsAsync(new PerformanceSample());
+            mockHealthyAdapter.Setup(a => a.GetUnknownFields()).Returns(new List<UnknownFieldEntry>());
+
+            var adapters = new[] { mockBrokenAdapter.Object, mockHealthyAdapter.Object };
+
+            var collector = new CollectorService(
+                _mockConfigService.Object,
+                _mockSystemProvider.Object,
+                adapters,
+                _testScheduler);
+
+            var snapshotsReceived = new List<CollectorSnapshot>();
+            using var sub = collector.Snapshots
+                .Where(s => s.Timestamp != DateTime.MinValue)
+                .Subscribe(snapshotsReceived.Add);
+
+            // Act
+            await collector.StartAsync();
+
+            // Advance by 1 tick to let the t=0 poll fire
+            _testScheduler.AdvanceBy(10);
+
+            // Assert: We should have received a snapshot
+            snapshotsReceived.Should().ContainSingle();
+            var snap = snapshotsReceived[0];
+
+            // The broken adapter should not have stopped the healthy adapter's info from being collected
+            snap.Runtimes.Should().ContainSingle(r => r.RuntimeName == "healthy-runtime");
+            snap.Runtimes.Should().NotContain(r => r.RuntimeName == "broken-runtime");
+        }
+
+        [Fact]
+        public async Task CollectorService_SetPollingIntervalZero_ClearsOverrideAndResumesAdaptiveScheduling()
+        {
+            // Arrange
+            var adapters = new[] { _mockOllamaAdapter.Object };
+            var collector = new CollectorService(
+                _mockConfigService.Object,
+                _mockSystemProvider.Object,
+                adapters,
+                _testScheduler);
+
+            var snapshotsReceived = new List<CollectorSnapshot>();
+            using var sub = collector.Snapshots
+                .Where(s => s.Timestamp != DateTime.MinValue)
+                .Subscribe(snapshotsReceived.Add);
+
+            await collector.StartAsync();
+
+            // Set polling interval override
+            collector.SetPollingInterval(TimeSpan.FromMilliseconds(500));
+
+            // Act: Call SetPollingInterval with TimeSpan.Zero
+            collector.SetPollingInterval(TimeSpan.Zero);
+
+            // Let t=0 poll fire, then clear baseline
+            _testScheduler.AdvanceBy(10);
+            snapshotsReceived.Clear();
+
+            // Assert: Standard adaptive scheduling (idle = 3s) should be in effect
+            // Advance by 2.8 seconds - should NOT poll
+            _testScheduler.AdvanceBy(TimeSpan.FromMilliseconds(2800).Ticks);
+            snapshotsReceived.Should().BeEmpty();
+
+            // Advance by a further 400ms (crossing the 3s adaptive boundary) -> should poll once
+            _testScheduler.AdvanceBy(TimeSpan.FromMilliseconds(400).Ticks);
+            snapshotsReceived.Should().ContainSingle();
+        }
     }
 }

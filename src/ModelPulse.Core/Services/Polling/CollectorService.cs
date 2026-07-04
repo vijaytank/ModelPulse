@@ -87,7 +87,14 @@ namespace ModelPulse.Core.Services.Polling
         {
             lock (_lock)
             {
-                _overrideInterval = interval;
+                if (interval <= TimeSpan.Zero)
+                {
+                    _overrideInterval = null;
+                }
+                else
+                {
+                    _overrideInterval = interval;
+                }
             }
         }
 
@@ -145,22 +152,57 @@ namespace ModelPulse.Core.Services.Polling
 
             foreach (var adapter in _adapters)
             {
-                var isAvailable = await adapter.IsAvailableAsync();
-                var summary = await adapter.GetRuntimeSummaryAsync();
-                runtimes.Add(summary);
-
-                if (isAvailable)
+                try
                 {
-                    anyRuntimeActive = true;
+                    var isAvailable = await adapter.IsAvailableAsync();
+                    var summary = await adapter.GetRuntimeSummaryAsync();
+                    if (summary != null)
+                    {
+                        runtimes.Add(summary);
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"[CollectorService] Warning: Adapter {adapter.GetType().Name} returned null summary. Skipping data collection for this adapter.");
+                    }
 
-                    var models = await adapter.GetActiveModelsAsync();
-                    activeModels.AddRange(models);
+                    if (isAvailable)
+                    {
+                        anyRuntimeActive = true;
 
-                    var sample = await adapter.GetPerformanceSampleAsync();
-                    performance.Add(sample);
+                        var models = await adapter.GetActiveModelsAsync();
+                        if (models != null && models.Any())
+                        {
+                            activeModels.AddRange(models);
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"[CollectorService] Warning: Adapter {adapter.GetType().Name} returned no active models.");
+                        }
 
-                    var fields = adapter.GetUnknownFields();
-                    unknownFields.AddRange(fields);
+                        var sample = await adapter.GetPerformanceSampleAsync();
+                        if (sample != null)
+                        {
+                            performance.Add(sample);
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"[CollectorService] Warning: Adapter {adapter.GetType().Name} returned null performance sample.");
+                        }
+
+                        var fields = adapter.GetUnknownFields();
+                        if (fields != null && fields.Any())
+                        {
+                            unknownFields.AddRange(fields);
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"[CollectorService] Warning: Adapter {adapter.GetType().Name} returned no unknown fields.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[CollectorService] Exception while polling adapter {adapter.GetType().Name}: {ex.Message}");
                 }
             }
 

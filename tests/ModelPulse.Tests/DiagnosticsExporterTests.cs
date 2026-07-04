@@ -55,5 +55,44 @@ namespace ModelPulse.Tests
             var unknownFields = root.GetProperty("unknown_fields");
             unknownFields[0].GetProperty("field_name").GetString().Should().Be("experimental_field");
         }
+
+        [Fact]
+        public void Export_ScrubsNonWhitelistedUnknownFields()
+        {
+            // Arrange
+            var settings = new ModelPulseSettings();
+            var snapshot = new CollectorSnapshot
+            {
+                Timestamp = DateTime.UtcNow,
+                UnknownFields = new List<UnknownFieldEntry>
+                {
+                    // "status" is whitelisted -> should NOT be scrubbed
+                    new() { RuntimeName = "ollama", FieldName = "status", SampleValue = "running" },
+                    // "secret_path" is NOT whitelisted -> should be scrubbed
+                    new() { RuntimeName = "ollama", FieldName = "secret_path", SampleValue = "C:\\Users\\Vijay\\secret.json" }
+                }
+            };
+
+            // Act
+            var jsonString = DiagnosticsExporter.Export(snapshot, settings);
+
+            // Assert
+            jsonString.Should().NotBeNullOrEmpty();
+            var jsonDoc = JsonDocument.Parse(jsonString);
+            var root = jsonDoc.RootElement;
+            var unknownFields = root.GetProperty("unknown_fields");
+
+            unknownFields.GetArrayLength().Should().Be(2);
+
+            // status check
+            var f1 = unknownFields[0];
+            f1.GetProperty("field_name").GetString().Should().Be("status");
+            f1.GetProperty("sample_value").GetString().Should().Be("running");
+
+            // secret_path check
+            var f2 = unknownFields[1];
+            f2.GetProperty("field_name").GetString().Should().Be("secret_path");
+            f2.GetProperty("sample_value").GetString().Should().Be("[SCRUBBED]");
+        }
     }
 }

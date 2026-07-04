@@ -16,6 +16,15 @@ namespace ModelPulse.Core.Services.Diagnostics
             WriteIndented = true
         };
 
+        private static readonly HashSet<string> TrustedFields = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "status",
+            "slots_idle",
+            "slots_processing",
+            "version",
+            "experimental_field"
+        };
+
         /// <summary>
         /// Serializes settings, snapshots, active runtime configurations,
         /// and drift logging records into a diagnostic JSON report payload.
@@ -41,13 +50,14 @@ namespace ModelPulse.Core.Services.Diagnostics
             var unknownFieldsList = new List<object>();
             foreach (var u in snapshot.UnknownFields)
             {
+                var isTrusted = TrustedFields.Contains(u.FieldName);
                 unknownFieldsList.Add(new
                 {
                     runtime = u.RuntimeName,
                     field_name = u.FieldName,
                     first_seen = u.FirstSeenAt,
                     last_seen = u.LastSeenAt,
-                    sample_value = u.SampleValue
+                    sample_value = isTrusted ? u.SampleValue : "[SCRUBBED]"
                 });
             }
 

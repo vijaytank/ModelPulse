@@ -27,10 +27,6 @@ namespace ModelPulse.UI
         private TaskbarIcon? _trayIcon;
 
         // ── Manual drag state ─────────────────────────────────────────────────
-        // We use manual drag instead of DragMove() to avoid the WPF blank-ghost
-        // artifact that occurs with AllowsTransparency="True" windows: DragMove()
-        // issues WM_NCLBUTTONDOWN, causing DWM to stop rendering the layered-window
-        // alpha content mid-move and show only an opaque backing rectangle.
         private bool _isDragging;
         private Point _dragStartScreen; // cursor position in screen coords at drag start
         private double _winLeftAtDragStart;
@@ -41,6 +37,51 @@ namespace ModelPulse.UI
 
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
+
+        // ─── Global Hotkey Listener ─────────────────────────────────────────
+        private const int WM_HOTKEY = 0x0312;
+        private const int HOTKEY_TOGGLE_OVERLAY = 1;
+        private const int VK_O = 0x4F;
+        private const int MOD_CONTROL = 0x0001;
+        private const int MOD_ALT = 0x0002;
+
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        private HwndSource? _hwndSource;
+
+        private void RegisterHotkeys()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                uint modifiers = MOD_CONTROL | MOD_ALT;
+                RegisterHotKey(hwnd, HOTKEY_TOGGLE_OVERLAY, modifiers, VK_O);
+            }
+        }
+
+        private void UnregisterHotkeys()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                UnregisterHotKey(hwnd, HOTKEY_TOGGLE_OVERLAY);
+            }
+        }
+
+        private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_TOGGLE_OVERLAY)
+            {
+                // Toggle compact mode when hotkey is pressed
+                _viewModel.IsCompactMode = !_viewModel.IsCompactMode;
+                handled = true;
+            }
+            return IntPtr.Zero;
+        }
 
         public MainWindow(ICollectorService collectorService, IConfigService configService)
         {
@@ -68,6 +109,12 @@ namespace ModelPulse.UI
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
+            
+            var hwnd = new WindowInteropHelper(this).Handle;
+            _hwndSource = HwndSource.FromHwnd(hwnd);
+            _hwndSource?.AddHook(HwndHook);
+
+            RegisterHotkeys();
             UpdateMousePassThrough();
         }
 
@@ -86,7 +133,6 @@ namespace ModelPulse.UI
 
         /// <summary>
         /// MouseLeftButtonDown: begin a manual drag or register a double-click expand.
-        /// Single click + hold → drag. Double click → expand to full overlay.
         /// </summary>
         private void CompactOverlay_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -101,8 +147,7 @@ namespace ModelPulse.UI
                 return;
             }
 
-            // Begin manual drag: capture the mouse so we still receive Move/Up
-            // even when the cursor leaves the border element.
+            // Begin manual drag
             _isDragging = true;
             _dragStartScreen = PointToScreen(e.GetPosition(this));
             _winLeftAtDragStart = Left;
@@ -113,8 +158,6 @@ namespace ModelPulse.UI
 
         /// <summary>
         /// MouseMove: update window position while dragging.
-        /// Setting Window.Left / Window.Top is fully WPF-compositor-managed and
-        /// does not trigger the DWM layered-window blank-out that DragMove() does.
         /// </summary>
         private void CompactOverlay_MouseMove(object sender, MouseEventArgs e)
         {
@@ -177,6 +220,14 @@ namespace ModelPulse.UI
         {
             this.AddLogicalChild(trayIcon);
             _trayIcon = trayIcon as TaskbarIcon;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _hwndSource?.RemoveHook(HwndHook);
+            _hwndSource = null;
+            UnregisterHotkeys();
+            base.OnClosed(e);
         }
     }
 }

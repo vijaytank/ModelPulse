@@ -305,6 +305,105 @@ llamacpp:slots_active 2
             sample2.PromptTokensPerSecond!.Value.Should().BeGreaterThan(0);
             sample2.GenerationTokensPerSecond!.Value.Should().BeGreaterThan(0);
         }
+
+        [Fact]
+        public async Task LlamaCppAdapter_GetRuntimeSummary_ParsesBuildInfoFromProps()
+        {
+            // Arrange
+            var healthJson = @"{ ""status"": ""ok"" }";
+            var propsJson = @"{ ""build_info"": ""b9639-ef8268fee"" }";
+            var handler = new RoutedMockHttpHandler(new Dictionary<string, (HttpStatusCode, string, string)>
+            {
+                { "/health", (HttpStatusCode.OK, healthJson, "application/json") },
+                { "/props", (HttpStatusCode.OK, propsJson, "application/json") }
+            });
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:8080") };
+            var adapter = new LlamaCppAdapter(httpClient);
+
+            // Act
+            var summary = await adapter.GetRuntimeSummaryAsync();
+
+            // Assert
+            summary.Should().NotBeNull();
+            summary.RuntimeVersion.Should().Be("b9639-ef8268fee");
+        }
+
+        [Fact]
+        public async Task LlamaCppAdapter_GetActiveModels_ParsesLoadedModel()
+        {
+            // Arrange
+            var modelsJson = @"{ ""data"": [ { ""id"": ""gemma-4-e4b-it-q4-k-m"", ""status"": { ""value"": ""loaded"" }, ""meta"": { ""size"": 4961343656, ""n_ctx"": 131072 } } ] }";
+            var handler = new RoutedMockHttpHandler(new Dictionary<string, (HttpStatusCode, string, string)>
+            {
+                { "/v1/models", (HttpStatusCode.OK, modelsJson, "application/json") }
+            });
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:8080") };
+            var adapter = new LlamaCppAdapter(httpClient);
+
+            // Act
+            var activeModels = await adapter.GetActiveModelsAsync();
+
+            // Assert
+            activeModels.Should().NotBeNull();
+            activeModels.Should().ContainSingle();
+            var model = activeModels[0];
+            model.ModelName.Should().Be("gemma-4-e4b-it-q4-k-m");
+            model.SizeVramBytes.Should().Be(4961343656);
+            model.ContextLength.Should().Be(131072);
+        }
+
+        [Fact]
+        public async Task LlamaCppAdapter_GetPerformanceSample_FallsBackToSlotsStats()
+        {
+            // Arrange
+            var healthJson = @"{ ""status"": ""ok"" }";
+            var modelsJson = @"{ ""data"": [ { ""id"": ""gemma-4-e4b-it-q4-k-m"", ""status"": { ""value"": ""loaded"" } } ] }";
+            var slotsJson1 = @"[
+                { ""id"": 0, ""is_processing"": false },
+                { ""id"": 1, ""is_processing"": true, ""id_task"": 10, ""n_prompt_tokens_processed"": 100, ""next_token"": [ { ""n_decoded"": 10 } ] }
+            ]";
+            var slotsJson2 = @"[
+                { ""id"": 0, ""is_processing"": false },
+                { ""id"": 1, ""is_processing"": true, ""id_task"": 10, ""n_prompt_tokens_processed"": 100, ""next_token"": [ { ""n_decoded"": 35 } ] }
+            ]";
+
+            int callCount = 0;
+            var handler = new DynamicMockHttpHandler(req =>
+            {
+                var path = req.RequestUri?.PathAndQuery ?? "/";
+                if (path.StartsWith("/health"))
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(healthJson, Encoding.UTF8, "application/json") };
+                if (path.StartsWith("/v1/models"))
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(modelsJson, Encoding.UTF8, "application/json") };
+                if (path.StartsWith("/metrics"))
+                    return new HttpResponseMessage(HttpStatusCode.NotFound); // Metrics not supported
+                if (path.StartsWith("/slots"))
+                {
+                    callCount++;
+                    var json = callCount == 1 ? slotsJson1 : slotsJson2;
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+                }
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:8080") };
+            var adapter = new LlamaCppAdapter(httpClient);
+
+            // Act
+            var sample1 = await adapter.GetPerformanceSampleAsync();
+            await Task.Delay(100);
+            var sample2 = await adapter.GetPerformanceSampleAsync();
+
+            // Assert
+            sample1.ActiveSlots.Should().Be(1);
+            sample1.IdleSlots.Should().Be(1);
+            sample1.GenerationTokensPerSecond.Should().BeNull();
+
+            sample2.ActiveSlots.Should().Be(1);
+            sample2.IdleSlots.Should().Be(1);
+            sample2.GenerationTokensPerSecond.Should().NotBeNull();
+            sample2.GenerationTokensPerSecond!.Value.Should().BeGreaterThan(0);
+        }
     }
 
     internal class DynamicMockHttpHandler : HttpMessageHandler

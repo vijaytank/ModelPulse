@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Management;
@@ -242,7 +243,7 @@ namespace ModelPulse.Core.Services.System
         // Private: GPU Providers
         // ─────────────────────────────────────────────────────────────────
 
-        private GpuTelemetryState? TryNvml()
+        protected virtual GpuTelemetryState? TryNvml()
         {
             string[] searchPaths = {
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "nvml.dll"),
@@ -314,7 +315,7 @@ namespace ModelPulse.Core.Services.System
             }
         }
 
-        private GpuTelemetryState? TryDxgi()
+        protected virtual GpuTelemetryState? TryDxgi()
         {
             try
             {
@@ -350,35 +351,38 @@ namespace ModelPulse.Core.Services.System
             return null;
         }
 
-        private GpuTelemetryState? TryWmi()
+        protected virtual GpuTelemetryState? TryWmi()
         {
-            try
+            return GetCachedData("WmiGpuState", () =>
             {
-                using var searcher = new ManagementObjectSearcher(
-                    "SELECT Name, AdapterRAM FROM Win32_VideoController");
-                foreach (var obj in searcher.Get())
+                try
                 {
-                    var name = obj["Name"]?.ToString();
-                    if (!string.IsNullOrEmpty(name))
+                    using var searcher = new ManagementObjectSearcher(
+                        "SELECT Name, AdapterRAM FROM Win32_VideoController");
+                    foreach (var obj in searcher.Get())
                     {
-                        double totalMb = 0;
-                        if (double.TryParse(obj["AdapterRAM"]?.ToString(), out double bytes))
-                            totalMb = bytes / (1024.0 * 1024.0);
-
-                        return new GpuTelemetryState
+                        var name = obj["Name"]?.ToString();
+                        if (!string.IsNullOrEmpty(name))
                         {
-                            Name = name,
-                            SourcePath = "WMI",
-                            VramTotalMb = totalMb
-                        };
+                            double totalMb = 0;
+                            if (double.TryParse(obj["AdapterRAM"]?.ToString(), out double bytes))
+                                totalMb = bytes / (1024.0 * 1024.0);
+
+                            return new GpuTelemetryState
+                            {
+                                Name = name,
+                                SourcePath = "WMI",
+                                VramTotalMb = totalMb
+                            };
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SystemTelemetryProvider/WMI] {ex.Message}");
-            }
-            return null;
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[SystemTelemetryProvider/WMI] {ex.Message}");
+                }
+                return null;
+            });
         }
 
         private static T GetProc<T>(IntPtr hModule, string procName) where T : Delegate
@@ -387,6 +391,25 @@ namespace ModelPulse.Core.Services.System
             if (ptr == IntPtr.Zero)
                 throw new EntryPointNotFoundException($"Cannot find {procName} in nvml.dll");
             return (T)Marshal.GetDelegateForFunctionPointer(ptr, typeof(T));
+        }
+
+        // ─── Caching ─────────────────────────────────────────────────────────
+        private readonly ConcurrentDictionary<string, (object data, DateTime timestamp)> _cache = new();
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+
+        protected T? GetCachedData<T>(string key, Func<T?> fetcher) where T : class
+        {
+            if (_cache.TryGetValue(key, out var cachedEntry) && DateTime.UtcNow - cachedEntry.timestamp < CacheDuration)
+            {
+                return cachedEntry.data as T;
+            }
+
+            var freshData = fetcher();
+            if (freshData != null)
+            {
+                _cache[key] = (freshData, DateTime.UtcNow);
+            }
+            return freshData;
         }
     }
 }

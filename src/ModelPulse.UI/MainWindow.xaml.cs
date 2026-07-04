@@ -167,8 +167,18 @@ namespace ModelPulse.UI
             var deltaX = currentScreen.X - _dragStartScreen.X;
             var deltaY = currentScreen.Y - _dragStartScreen.Y;
 
-            Left = _winLeftAtDragStart + deltaX;
-            Top  = _winTopAtDragStart  + deltaY;
+            var (clampedLeft, clampedTop) = WindowPositionHelper.ClampPosition(
+                _winLeftAtDragStart + deltaX,
+                _winTopAtDragStart + deltaY,
+                Width,
+                Height,
+                SystemParameters.VirtualScreenLeft,
+                SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth,
+                SystemParameters.VirtualScreenHeight);
+
+            Left = clampedLeft;
+            Top  = clampedTop;
         }
 
         /// <summary>

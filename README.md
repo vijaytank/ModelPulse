@@ -270,6 +270,21 @@ All planning documents live in [`Project_brain/`](Project_brain/):
 
 ---
 
+## ⚙️ Configuration Defaults
+
+ModelPulse comes configured with sensible, developer-friendly defaults out of the box. These settings are persisted locally in `%APPDATA%\ModelPulse\settings.json` and can be customized via the UI Settings window or overridden at runtime using environment variables:
+
+*   **Local AI Endpoints**:
+    *   **Ollama API**: Defaults to `http://127.0.0.1:11434` (Enabled by default).
+    *   **llama.cpp API**: Defaults to `http://127.0.0.1:8080` (Disabled by default).
+*   **Operational Cooldowns**:
+    *   **Alert Cooldown**: Defaults to `60` seconds. Prevents redundant alert notifications (e.g. system RAM/VRAM pressure spikes or connection drops) from spamming the system tray.
+*   **UI Startup State**:
+    *   **Compact Mode**: Defaults to `true` (The overlay launches in a space-saving, edge-pinned compact mode).
+    *   **Show on App Launch**: Defaults to `false` (`LaunchOverlayOnStartup = false`). The application launches silently into the system tray and does not automatically pop up the overlay window until clicked or requested.
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -282,7 +297,7 @@ All planning documents live in [`Project_brain/`](Project_brain/):
 
 ```powershell
 # Clone the repository
-git clone https://github.com/your-org/ModelPulse.git
+git clone https://github.com/vijaytank/ModelPulse.git
 cd ModelPulse
 
 # Build the entire solution

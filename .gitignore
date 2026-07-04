@@ -33,3 +33,14 @@ Desktop.ini
 
 *.zip
 modelpulse*.zip
+
+## Local AI Tooling Artifacts (do not publish)
+nakshastra-out/
+.mcpignore
+
+## Local IDE / Agent Config
+.claude/
+.vscode/settings.json
+
+## Release artifacts
+publish-out/

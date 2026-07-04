@@ -94,8 +94,114 @@ namespace ModelPulse.Core.Services.Config
             Save();
         }
 
+        private void ApplyEnvironmentVariables()
+        {
+            if (CurrentSettings == null)
+            {
+                CurrentSettings = new ModelPulseSettings();
+            }
+            if (CurrentSettings.PollingIntervals == null)
+            {
+                CurrentSettings.PollingIntervals = new PollingIntervals();
+            }
+            if (CurrentSettings.Runtimes == null)
+            {
+                CurrentSettings.Runtimes = new RuntimesConfig();
+            }
+            if (CurrentSettings.Runtimes.Ollama == null)
+            {
+                CurrentSettings.Runtimes.Ollama = new RuntimeConfig { Enabled = true, Endpoint = "http://127.0.0.1:11434" };
+            }
+            if (CurrentSettings.Runtimes.LlamaCpp == null)
+            {
+                CurrentSettings.Runtimes.LlamaCpp = new RuntimeConfig { Enabled = false, Endpoint = "http://127.0.0.1:8080" };
+            }
+            if (CurrentSettings.Alerts == null)
+            {
+                CurrentSettings.Alerts = new AlertsConfig();
+            }
+            if (CurrentSettings.Ui == null)
+            {
+                CurrentSettings.Ui = new UiConfig();
+            }
+
+            var envPollingMode = Environment.GetEnvironmentVariable("MODELPULSE_POLLING_MODE");
+            if (!string.IsNullOrWhiteSpace(envPollingMode))
+            {
+                CurrentSettings.PollingMode = envPollingMode.Trim();
+            }
+
+            var envIdleMs = Environment.GetEnvironmentVariable("MODELPULSE_POLLING_INTERVAL_IDLE_MS");
+            if (!string.IsNullOrWhiteSpace(envIdleMs) && int.TryParse(envIdleMs, out int idleMs))
+            {
+                CurrentSettings.PollingIntervals.IdleMs = idleMs;
+            }
+
+            var envActiveMs = Environment.GetEnvironmentVariable("MODELPULSE_POLLING_INTERVAL_ACTIVE_MS");
+            if (!string.IsNullOrWhiteSpace(envActiveMs) && int.TryParse(envActiveMs, out int activeMs))
+            {
+                CurrentSettings.PollingIntervals.ActiveMs = activeMs;
+            }
+
+            var envOllamaEnabled = Environment.GetEnvironmentVariable("MODELPULSE_OLLAMA_ENABLED");
+            if (!string.IsNullOrWhiteSpace(envOllamaEnabled) && bool.TryParse(envOllamaEnabled, out bool ollamaEnabled))
+            {
+                CurrentSettings.Runtimes.Ollama.Enabled = ollamaEnabled;
+            }
+
+            var envOllamaEndpoint = Environment.GetEnvironmentVariable("MODELPULSE_OLLAMA_ENDPOINT");
+            if (!string.IsNullOrWhiteSpace(envOllamaEndpoint))
+            {
+                CurrentSettings.Runtimes.Ollama.Endpoint = envOllamaEndpoint.Trim();
+            }
+
+            var envLlamaCppEnabled = Environment.GetEnvironmentVariable("MODELPULSE_LLAMACPP_ENABLED");
+            if (!string.IsNullOrWhiteSpace(envLlamaCppEnabled) && bool.TryParse(envLlamaCppEnabled, out bool llamaCppEnabled))
+            {
+                CurrentSettings.Runtimes.LlamaCpp.Enabled = llamaCppEnabled;
+            }
+
+            var envLlamaCppEndpoint = Environment.GetEnvironmentVariable("MODELPULSE_LLAMACPP_ENDPOINT");
+            if (!string.IsNullOrWhiteSpace(envLlamaCppEndpoint))
+            {
+                CurrentSettings.Runtimes.LlamaCpp.Endpoint = envLlamaCppEndpoint.Trim();
+            }
+
+            var envCooldown = Environment.GetEnvironmentVariable("MODELPULSE_ALERT_COOLDOWN_SECONDS");
+            if (!string.IsNullOrWhiteSpace(envCooldown) && int.TryParse(envCooldown, out int cooldown))
+            {
+                CurrentSettings.Alerts.CooldownSeconds = cooldown;
+            }
+
+            var envVramThreshold = Environment.GetEnvironmentVariable("MODELPULSE_ALERT_VRAM_WARNING_THRESHOLD_PERCENT");
+            if (!string.IsNullOrWhiteSpace(envVramThreshold) && double.TryParse(envVramThreshold, out double vramThreshold))
+            {
+                CurrentSettings.Alerts.VramWarningThresholdPercent = vramThreshold;
+            }
+
+            var envAlwaysOnTop = Environment.GetEnvironmentVariable("MODELPULSE_UI_ALWAYS_ON_TOP");
+            if (!string.IsNullOrWhiteSpace(envAlwaysOnTop) && bool.TryParse(envAlwaysOnTop, out bool alwaysOnTop))
+            {
+                CurrentSettings.Ui.AlwaysOnTop = alwaysOnTop;
+            }
+
+            var envOpacity = Environment.GetEnvironmentVariable("MODELPULSE_UI_OPACITY");
+            if (!string.IsNullOrWhiteSpace(envOpacity) && double.TryParse(envOpacity, out double opacity))
+            {
+                CurrentSettings.Ui.Opacity = opacity;
+            }
+
+            var envLaunchOnStartup = Environment.GetEnvironmentVariable("MODELPULSE_UI_LAUNCH_OVERLAY_ON_STARTUP");
+            if (!string.IsNullOrWhiteSpace(envLaunchOnStartup) && bool.TryParse(envLaunchOnStartup, out bool launchOnStartup))
+            {
+                CurrentSettings.Ui.LaunchOverlayOnStartup = launchOnStartup;
+            }
+        }
+
         private void ValidateAndEnforceBounds()
         {
+            ApplyEnvironmentVariables();
+
             // Polling mode validation
             if (CurrentSettings.PollingMode != "default" &&
                 CurrentSettings.PollingMode != "low-power" &&

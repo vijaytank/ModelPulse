@@ -198,6 +198,7 @@ All background subscribers process on `TaskPoolScheduler`. The WPF UI thread is 
 See the full field definitions and compatibility matrix in [`Project_brain/telemetry-schema.md`](Project_brain/telemetry-schema.md).
 
 ### System Telemetry (Always Active)
+
 | Field | Source | Notes |
 |---|---|---|
 | `cpu_percent` | Windows performance counters | Always displayed |
@@ -207,6 +208,7 @@ See the full field definitions and compatibility matrix in [`Project_brain/telem
 | `widget_ram_mb` | Self-telemetry | Ensures ModelPulse stays within budget |
 
 ### Ollama Runtime Fields (Conditional)
+
 | Field | Endpoint | Notes |
 |---|---|---|
 | `model_name` | `/api/ps` | Primary model identifier |
@@ -217,6 +219,7 @@ See the full field definitions and compatibility matrix in [`Project_brain/telem
 | `gen_tps` | Derived | `eval_count / (eval_duration / 1e9)` |
 
 ### llama.cpp Runtime Fields (Conditional)
+
 | Field | Endpoint | Notes |
 |---|---|---|
 | `llama_server_up` | `/health` | Server reachability |

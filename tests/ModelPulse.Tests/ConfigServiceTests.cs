@@ -138,5 +138,32 @@ namespace ModelPulse.Tests
             var diskContent = File.ReadAllText(_tempFilePath);
             diskContent.Should().Contain("\"polling_mode\": \"low-power\"");
         }
+
+        [Fact]
+        public void Load_EnvironmentVariablesPresent_OverridesSettings()
+        {
+            // Arrange
+            var configService = new ConfigService(_tempFilePath);
+            configService.Load(); // load defaults
+
+            Environment.SetEnvironmentVariable("MODELPULSE_OLLAMA_ENDPOINT", "http://env-ollama:11434");
+            Environment.SetEnvironmentVariable("MODELPULSE_ALERT_COOLDOWN_SECONDS", "120");
+
+            try
+            {
+                // Act
+                configService.Load(); // reload and apply env vars
+
+                // Assert
+                configService.CurrentSettings.Runtimes.Ollama.Endpoint.Should().Be("http://env-ollama:11434");
+                configService.CurrentSettings.Alerts.CooldownSeconds.Should().Be(120);
+            }
+            finally
+            {
+                // Clean up environment variables
+                Environment.SetEnvironmentVariable("MODELPULSE_OLLAMA_ENDPOINT", null);
+                Environment.SetEnvironmentVariable("MODELPULSE_ALERT_COOLDOWN_SECONDS", null);
+            }
+        }
     }
 }

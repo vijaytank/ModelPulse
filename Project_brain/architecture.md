@@ -64,6 +64,14 @@ ModelPulse uses a **Reactive Push Model** via Reactive Extensions (Rx.NET / `Sys
 - For runtime lists, updates target `ObservableCollection<RuntimeViewModel>` with minimal add/remove/update operations (no full-list replacement).
 - `BeginInvoke` is preferred over `Invoke` to keep the Dispatcher non-blocking; `DispatcherPriority.Background` ensures urgent render/input tasks are not starved.
 
+#### Rx State Marshaling Snippet
+To marshal telemetry data from background polling threads to the UI thread, the application uses the following Reactive Extensions (Rx) subscription chain contract:
+```csharp
+collectorSnapshotStream.ObserveOn(TaskPoolScheduler.Default).Subscribe(s =>
+    Dispatcher.BeginInvoke(DispatcherPriority.Background, () => viewModel.ApplySnapshot(s)));
+```
+This ensures pre-processing (like filtering and buffering) happens off the UI thread while UI updates are processed asynchronously at low priority to prevent UI thread starvation.
+
 #### Why Not Alternatives
 - **Dispatcher.Invoke per metric:** Causes many cross-thread calls per cycle → UI thread contention and stuttering under high-frequency polling.
 - **Collector writing directly to ViewModels:** Tight coupling; collector must know about UI threading and ViewModel internals.

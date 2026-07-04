@@ -104,8 +104,11 @@ namespace ModelPulse.UI
             // Start background collection loop
             await _collectorService.StartAsync();
 
-            // 5. Show Overlay Window on first launch for visibility
-            ShowOverlay();
+            // 5. Show Overlay Window if configured to launch on startup, otherwise run minimized to tray
+            if (settings.Ui.LaunchOverlayOnStartup)
+            {
+                ShowOverlay();
+            }
         }
 
         private void InitializeTrayIcon()

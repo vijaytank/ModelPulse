@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest xmlns="http://schemas.microsoft.com/developer/appx/2015/build" Uri="http://schemas.microsoft.com/msix/manifest/publisher">
+  <Identity
+    Name="ModelPulse"
+    Publisher="CN=ModelPulse, O=ModelPulse, C=US"
+    Version="1.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>ModelPulse</DisplayName>
+    <PublisherDisplayName>ModelPulse</PublisherDisplayName>
+    <Description>An always-on AI runtime monitor for local developers, supporting Ollama and llama.cpp</Description>
+    <Logo>Resources/tray_icon.ico</Logo>
+  </Properties>
+
+  <Dependencies>
+    <Dependency Name="Microsoft.NetCore.DesktopRuntime" MinVersion="10.0.0" />
+    <Dependency Name="WPF" />
+  </Dependencies>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+  </Capabilities>
+
+  <Installer>
+    <Architecture>x64</Architecture>
+    <InstallerType>zip</InstallerType>
+    <InstallLocation>C:\Program Files\ModelPulse</InstallLocation>
+    <InstallerUrl>https://github.com/vijaytank/ModelPulse/releases/latest/download/ModelPulse.zip</InstallerUrl>
+    <InstallerSha256>e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</InstallerSha256>
+    <UpgradeBehavior>install</UpgradeBehavior>
+  </Installer>
+</PackageManifest>

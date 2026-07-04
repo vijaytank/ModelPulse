@@ -69,7 +69,7 @@ namespace ModelPulse.Tests
                     // "status" is whitelisted -> should NOT be scrubbed
                     new() { RuntimeName = "ollama", FieldName = "status", SampleValue = "running" },
                     // "secret_path" is NOT whitelisted -> should be scrubbed
-                    new() { RuntimeName = "ollama", FieldName = "secret_path", SampleValue = "C:\\Users\\Vijay\\secret.json" }
+                    new() { RuntimeName = "ollama", FieldName = "secret_path", SampleValue = "C:\\Users\\user\\secret.json" }
                 }
             };
 

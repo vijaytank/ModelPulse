@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "69bd4b8d3f3f30573fe87e3008b6f8bb9150b9af",
+  "prompts": {},
+  "humans": {
+    "h_00808a70ed5adc": {
+      "author": "Vijay Tank <vijaytank130@gmamil.com>"
+    }
+  }
+}

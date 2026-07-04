@@ -16,8 +16,7 @@ We actively monitor and support the following versions of ModelPulse:
 **Do NOT report security vulnerabilities via public GitHub issues.** 
 
 If you discover a security vulnerability in ModelPulse, please report it privately:
-1. Email your findings to **security@modelpulse.dev** (or submit via GitHub's Private Vulnerability Reporting feature if enabled).
-2. Include a detailed description of the vulnerability, steps to reproduce, and any proof-of-concept (PoC) code or environment configurations.
+1. Include a detailed description of the vulnerability, steps to reproduce, and any proof-of-concept (PoC) code or environment configurations.
 
 ### Our Commitment & SLA
 

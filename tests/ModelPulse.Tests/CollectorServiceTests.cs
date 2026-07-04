@@ -207,5 +207,107 @@ namespace ModelPulse.Tests
             _testScheduler.AdvanceBy(TimeSpan.FromSeconds(1).Ticks + 10);
             snapshotsReceived.Should().HaveCount(5); // t=45s (polls!)
         }
+
+        /// <summary>
+        /// Regression test for the ForceRefresh CPU tight-loop bug (Bug #1).
+        ///
+        /// Root cause: SetPollingInterval(TimeSpan.Zero) sets _overrideInterval to
+        /// TimeSpan.Zero (HasValue = true), so ComputeNextDelay() returns 0ms on every
+        /// cycle — an infinite tight-loop consuming CPU.
+        ///
+        /// This test verifies that ClearPollingOverride() sets the override to null
+        /// and that subsequent scheduling resumes at the adaptive idle interval (3s),
+        /// NOT at 0ms.
+        ///
+        /// Note on virtual-time mechanics: when ClearPollingOverride() is called, the
+        /// scheduler has already queued the next callback at the burst interval (100ms).
+        /// That one in-flight cycle fires, then adaptive scheduling takes over.
+        /// We advance 200ms to let the in-flight fire, clear the baseline, then verify
+        /// 3s idle cadence from that point forward.
+        /// </summary>
+        [Fact]
+        public async Task CollectorService_ClearPollingOverride_ResumesAdaptiveScheduling()
+        {
+            // Arrange
+            var adapters = new[] { _mockOllamaAdapter.Object };
+            var collector = new CollectorService(
+                _mockConfigService.Object,
+                _mockSystemProvider.Object,
+                adapters,
+                _testScheduler);
+
+            var snapshotsReceived = new List<CollectorSnapshot>();
+            using var sub = collector.Snapshots
+                .Where(s => s.Timestamp != DateTime.MinValue)
+                .Subscribe(snapshotsReceived.Add);
+
+            await collector.StartAsync();
+
+            // Simulate ForceRefresh: set a 100ms burst interval
+            collector.SetPollingInterval(TimeSpan.FromMilliseconds(100));
+
+            // Advance 500ms — polls should happen every 100ms
+            _testScheduler.AdvanceBy(TimeSpan.FromMilliseconds(500).Ticks + 10);
+            snapshotsReceived.Count.Should().BeGreaterThan(3, "burst should produce multiple rapid polls");
+
+            // Clear override. The scheduler already has the next 100ms burst callback queued.
+            // Let that one in-flight cycle fire (advance 200ms), then snapshot the baseline count.
+            // After the in-flight poll completes, ComputeNextDelay() will see _overrideInterval==null
+            // and schedule the NEXT poll 3s (idle) later from that point.
+            collector.ClearPollingOverride();
+            _testScheduler.AdvanceBy(TimeSpan.FromMilliseconds(200).Ticks + 10);
+            var baselineCount = snapshotsReceived.Count;
+
+            // From here on, adaptive idle=3s should be in effect.
+            // Advance 2.8 seconds — NOT enough to cross the 3s boundary. Count must stay the same.
+            _testScheduler.AdvanceBy(TimeSpan.FromMilliseconds(2800).Ticks);
+            snapshotsReceived.Count.Should().Be(baselineCount,
+                "adaptive idle interval is 3s; no new poll should fire in 2.8s after ClearPollingOverride");
+
+            // Advance a further 400ms (total ~3.2s from baseline) → exactly one new poll
+            _testScheduler.AdvanceBy(TimeSpan.FromMilliseconds(400).Ticks);
+            snapshotsReceived.Count.Should().Be(baselineCount + 1,
+                "exactly one new poll should fire after the 3s adaptive idle boundary");
+        }
+
+        /// <summary>
+        /// Verifies that after ClearPollingOverride(), a subsequent SetPollingInterval
+        /// (non-zero) correctly establishes a new explicit cadence.
+        /// </summary>
+        [Fact]
+        public async Task CollectorService_SetPollingIntervalAfterClear_Works()
+        {
+            var adapters = new[] { _mockOllamaAdapter.Object };
+            var collector = new CollectorService(
+                _mockConfigService.Object,
+                _mockSystemProvider.Object,
+                adapters,
+                _testScheduler);
+
+            var snapshotsReceived = new List<CollectorSnapshot>();
+            using var sub = collector.Snapshots
+                .Where(s => s.Timestamp != DateTime.MinValue)
+                .Subscribe(snapshotsReceived.Add);
+
+            await collector.StartAsync();
+
+            // Set, then immediately clear (no time advance — tests the state transition only)
+            collector.SetPollingInterval(TimeSpan.FromMilliseconds(500));
+            collector.ClearPollingOverride();
+
+            // Immediately set a 1s explicit interval.
+            // The first poll fires at t=0 (already scheduled by StartAsync),
+            // then at t=1s, t=2s, etc.
+            collector.SetPollingInterval(TimeSpan.FromSeconds(1));
+
+            // Let t=0 poll fire, then clear baseline
+            _testScheduler.AdvanceBy(10);
+            snapshotsReceived.Clear();
+
+            // Advance 2s + 10 ticks — should see polls at t+1s and t+2s (2 polls)
+            _testScheduler.AdvanceBy(TimeSpan.FromSeconds(2).Ticks + 10);
+            snapshotsReceived.Should().HaveCount(2,
+                "after ClearPollingOverride + new SetPollingInterval(1s), should poll every 1s");
+        }
     }
 }

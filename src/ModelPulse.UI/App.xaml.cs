@@ -262,6 +262,9 @@ namespace ModelPulse.UI
         /// Forces an immediate poll cycle by momentarily shortening the polling interval.
         /// Restores normal adaptive scheduling after 500ms (one fast cycle).
         /// Does NOT restart CollectorService — SetPollingInterval is hot-swappable.
+        /// Bug fix: previously called SetPollingInterval(TimeSpan.Zero) which kept
+        /// _overrideInterval.HasValue = true and caused a 0ms tight-loop indefinitely.
+        /// ClearPollingOverride() correctly sets the override to null.
         /// </summary>
         private void ForceRefresh()
         {
@@ -270,7 +273,7 @@ namespace ModelPulse.UI
             // Restore normal adaptive scheduling after one fast cycle
             Task.Delay(500).ContinueWith(_ =>
                 Dispatcher.BeginInvoke(new Action(() =>
-                    _collectorService?.SetPollingInterval(TimeSpan.Zero))));
+                    _collectorService?.ClearPollingOverride())));
         }
 
         /// <summary>

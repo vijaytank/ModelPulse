@@ -91,6 +91,15 @@ namespace ModelPulse.Core.Services.Polling
             }
         }
 
+        /// <inheritdoc/>
+        public void ClearPollingOverride()
+        {
+            lock (_lock)
+            {
+                _overrideInterval = null;
+            }
+        }
+
         private void ScheduleNext(TimeSpan delay, CancellationToken ct)
         {
             lock (_lock)

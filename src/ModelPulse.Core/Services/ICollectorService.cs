@@ -33,5 +33,12 @@ namespace ModelPulse.Core.Services
         /// on the next cycle without restarting the service.
         /// </summary>
         void SetPollingInterval(TimeSpan interval);
+
+        /// <summary>
+        /// Clears any active polling interval override and resumes normal
+        /// adaptive scheduling. Call this after a forced refresh burst to
+        /// prevent the 0ms tight-loop caused by SetPollingInterval(TimeSpan.Zero).
+        /// </summary>
+        void ClearPollingOverride();
     }
 }

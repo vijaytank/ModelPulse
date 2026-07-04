@@ -1,0 +1,27 @@
+﻿title: ModelPulse
+description: >-
+  Always-on AI runtime monitor for local developers.
+  A native Windows desktop overlay and tray agent that keeps your AI workload
+  telemetry visible — without sacrificing the resources your models need.
+
+theme: jekyll-theme-cayman
+
+url: "https://vijaytank.github.io"
+baseurl: "/ModelPulse"
+
+author:
+  name: vijaytank
+  url: https://github.com/vijaytank
+
+show_downloads: true
+
+exclude:
+  - src/
+  - tests/
+  - deployment/
+  - nakshastra-out/
+  - publish-out/
+  - "*.slnx"
+  - "*.ps1"
+  - ".github/"
+  - "Project_brain/"

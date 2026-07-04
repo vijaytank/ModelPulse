@@ -156,6 +156,9 @@ namespace ModelPulse.UI
             var hideOverlayItem = new MenuItem { Header = "Hide Overlay" };
             hideOverlayItem.Click += (s, ev) => HideOverlay();
 
+            var resetPositionItem = new MenuItem { Header = "Reset Position" };
+            resetPositionItem.Click += (s, ev) => ResetOverlayPosition();
+
             var pausePollingItem = new MenuItem { Header = "Pause Polling" };
             pausePollingItem.Click += (s, ev) => TogglePolling(pausePollingItem);
 
@@ -173,6 +176,7 @@ namespace ModelPulse.UI
 
             menu.Items.Add(showOverlayItem);
             menu.Items.Add(hideOverlayItem);
+            menu.Items.Add(resetPositionItem);
             menu.Items.Add(new Separator());
             menu.Items.Add(pausePollingItem);
             menu.Items.Add(refreshItem);
@@ -198,8 +202,42 @@ namespace ModelPulse.UI
                     _overlayWindow.RegisterTrayIcon(_taskbarIcon);
                 }
             }
+            EnsureWindowIsVisible();
             _overlayWindow.Show();
             _overlayWindow.Activate();
+        }
+
+        private void EnsureWindowIsVisible()
+        {
+            if (_overlayWindow == null) return;
+
+            double left = _overlayWindow.Left;
+            double top = _overlayWindow.Top;
+            double width = _overlayWindow.Width;
+            double height = _overlayWindow.Height;
+
+            bool isOffScreen = WindowPositionHelper.IsOffScreen(
+                left, top, width, height,
+                SystemParameters.VirtualScreenLeft,
+                SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth,
+                SystemParameters.VirtualScreenHeight);
+
+            if (isOffScreen)
+            {
+                _overlayWindow.Left = SystemParameters.PrimaryScreenWidth - 320;
+                _overlayWindow.Top = SystemParameters.PrimaryScreenHeight - 480;
+            }
+        }
+
+        private void ResetOverlayPosition()
+        {
+            ShowOverlay();
+            if (_overlayWindow != null)
+            {
+                _overlayWindow.Left = SystemParameters.PrimaryScreenWidth - 320;
+                _overlayWindow.Top = SystemParameters.PrimaryScreenHeight - 480;
+            }
         }
 
         private void HideOverlay()

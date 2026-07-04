@@ -1,0 +1,34 @@
+src/ModelPulse.UI/WindowPositionHelper.cs
+  s_8ec676df2852b2::t_c9c80d9e876f46 1-42
+tests/ModelPulse.Tests/WindowPositionHelperTests.cs
+  s_f5734e4efe1c45::t_1b76ce553d23d7 1-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "bac784d001920c1e70932cd162746da792eb3770",
+  "prompts": {},
+  "humans": {
+    "h_00808a70ed5adc": {
+      "author": "Vijay Tank <vijaytank130@gmamil.com>"
+    }
+  },
+  "sessions": {
+    "s_8ec676df2852b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a01b3cab37eae18d7",
+        "model": "unknown"
+      },
+      "human_author": "Vijay Tank <vijaytank130@gmamil.com>"
+    },
+    "s_f5734e4efe1c45": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c1d94e498c5aeca",
+        "model": "unknown"
+      },
+      "human_author": "Vijay Tank <vijaytank130@gmamil.com>"
+    }
+  }
+}

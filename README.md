@@ -297,7 +297,7 @@ ModelPulse comes configured with sensible, developer-friendly defaults out of th
 
 ```powershell
 # Clone the repository
-git clone https://github.com/your-org/ModelPulse.git
+git clone https://github.com/vijaytank/ModelPulse.git
 cd ModelPulse
 
 # Build the entire solution

@@ -21,10 +21,10 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Restore Dependencies
-      run: dotnet restore ModelPulse.sln
+      run: dotnet restore ModelPulse.slnx
 
     - name: Build Solution
-      run: dotnet build ModelPulse.sln --configuration Release --no-restore
+      run: dotnet build ModelPulse.slnx --configuration Release --no-restore
 
     - name: Run Unit Tests
-      run: dotnet test ModelPulse.sln --configuration Release --no-build --verbosity normal
+      run: dotnet test ModelPulse.slnx --configuration Release --no-build --verbosity normal

@@ -1,0 +1,61 @@
+src/ModelPulse.Core/Services/Polling/CollectorService.cs
+  s_b15395f703d5d6::t_19d8be8499e8e3 91,97,155,157-166,168-196,198,200,202,204-205
+  s_b15395f703d5d6::t_57142d11128a2b 90
+  s_b15395f703d5d6::t_6280e569adac14 92-96
+  s_b15395f703d5d6::t_c86012d7d6860a 197
+  s_b15395f703d5d6::t_5c53b71db9fd9c 199
+  s_b15395f703d5d6::t_9ac1720d197585 201
+  s_b15395f703d5d6::t_5329ee61b0ac0e 203
+src/ModelPulse.Core/Services/Config/ConfigService.cs
+  s_f92980fe4c6441::t_07e7362239b070 55,60,65
+  s_f92980fe4c6441::t_dc7f964edcbacf 15
+  s_b15395f703d5d6::t_c47bf3e1238988 53,56-59,61-64,156
+  h_00808a70ed5adc 21,74-75
+src/ModelPulse.UI/MainWindow.xaml.cs
+  s_b15395f703d5d6::t_0a2cd6a49c4a01 41-44,60
+  h_00808a70ed5adc 46,50-51,57
+  s_f92980fe4c6441::t_4005afed23da53 49
+  s_b15395f703d5d6::t_1aee67e20aa305 45,47-48,52-56,58-59,62,65,68,114
+  s_b15395f703d5d6::t_5e4c05ae0b219e 61
+  s_b15395f703d5d6::t_a4c94d5689e5ee 63-64
+  s_b15395f703d5d6::t_a897238066382a 66-67
+  s_b15395f703d5d6::t_d8e239c1494914 69-71
+  s_b15395f703d5d6::t_b60b899f9fd3d9 112-113
+  s_b15395f703d5d6::t_cf9a0ea3e97de1 115-117
+src/ModelPulse.Core/Services/System/SystemTelemetryProvider.cs
+  s_b15395f703d5d6::t_87842216b778d9 2
+  s_b15395f703d5d6::t_3092ed48d20f4a 377,381,383,395-413
+  s_b15395f703d5d6::t_15a05231ef5995 374-376
+  s_b15395f703d5d6::t_7ccd33eae4336c 380
+  s_b15395f703d5d6::t_c9c3ead8561215 382
+  s_b15395f703d5d6::t_b09e98fb9716ab 384-385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "60d2a5f6f3b310a828738e721b166acc7f6fa65f",
+  "prompts": {},
+  "humans": {
+    "h_00808a70ed5adc": {
+      "author": "Vijay Tank <vijaytank130@gmamil.com>"
+    }
+  },
+  "sessions": {
+    "s_b15395f703d5d6": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "c3de59d2-3518-4222-8b7e-01ddbaaa7b67",
+        "model": "gpt-4.1"
+      },
+      "human_author": "Vijay Tank <vijaytank130@gmamil.com>"
+    },
+    "s_f92980fe4c6441": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "2d0e982e-db05-442b-948f-786f806986aa",
+        "model": "gpt-4.1"
+      },
+      "human_author": "Vijay Tank <vijaytank130@gmamil.com>"
+    }
+  }
+}

@@ -1,17 +1,13 @@
-<div align="center">
-
 # 🔬 ModelPulse
 
 ### *The always-on AI runtime monitor for local developers*
 
 **A native Windows desktop overlay and tray agent that keeps your AI workload telemetry visible — without sacrificing the resources your models need.**
 
-<br/>
-
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![UI](https://img.shields.io/badge/UI-WPF-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/desktop/wpf)
-[![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)](https://github.com)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)](https://github.com/vijaytank/ModelPulse)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [![Ollama](https://img.shields.io/badge/Supports-Ollama-black?logo=llm&logoColor=white)](https://ollama.com)
@@ -19,13 +15,7 @@
 [![GPU](https://img.shields.io/badge/GPU-NVIDIA%20%7C%20AMD%20%7C%20Intel-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/nvml)
 [![Tests](https://img.shields.io/badge/Tests-xUnit%20%7C%20FluentAssertions-success)](https://xunit.net)
 
-<br/>
-
 > 🧠 **Running local LLMs is awesome. Monitoring them shouldn't require keeping Task Manager open.**
-
-<br/>
-
-</div>
 
 ---
 

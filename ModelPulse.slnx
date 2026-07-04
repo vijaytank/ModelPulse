@@ -1,10 +1,2 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/ModelPulse.Core/ModelPulse.Core.csproj" />
-    <Project Path="src/ModelPulse.Phase0Spike/ModelPulse.Phase0Spike.csproj" />
-    <Project Path="src/ModelPulse.UI/ModelPulse.UI.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/ModelPulse.Tests/ModelPulse.Tests.csproj" />
-  </Folder>
 </Solution>

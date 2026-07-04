@@ -328,7 +328,8 @@ namespace ModelPulse.Core.Services.System
                     try
                     {
                         var adapter = (IDXGIAdapter3)Marshal.GetObjectForIUnknown(adapterPtr);
-                        if (adapter.QueryVideoMemoryInfo(0, 0, out var mem) == 0)
+                        if (adapter.QueryVideoMemoryInfo(0, 0, out var mem) == 0
+                            && mem.Budget > 0)   // skip software adapters with no physical VRAM
                         {
                             return new GpuTelemetryState
                             {

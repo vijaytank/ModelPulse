@@ -24,4 +24,3 @@ exclude:
   - "*.slnx"
   - "*.ps1"
   - ".github/"
-  - "Project_brain/"
